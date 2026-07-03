@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# osshp pre-push validation gate
+# Runs automatically before any git push that includes osshp/ changes.
+# Install with: osshp/scripts/setup-hooks.sh
+#
+# Gate: build + test + dependency CVE scan (local, never GitHub CI)
+# Failures block the push — fix the issue, don't skip the gate (--no-verify).
+#
+# CVE scan: `bun audit` exits 1 if any advisory is found (any severity).
+# To fix: update the offending package (`bun update <pkg>`) and commit
+# the updated bun.lock. For transitive deps (e.g. through next.js), update
+# the root package that pulls in the vulnerable transitive dep. See
+# osshp/docs/dependency-update-cadence.md for the full update workflow.
+# M2.8 note: the TipTap-cloud CI guard wires into this same gate surface.
+
+set -euo pipefail
+
+OSSHP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_DIR="$OSSHP_DIR/app"
+
+echo "[osshp gate] Starting pre-push validation..."
+
+# --- Build ---------------------------------------------------------------
+echo "[osshp gate] Building Next.js app..."
+cd "$APP_DIR"
+bun run build
+echo "[osshp gate] Build: PASS"
+
+# --- Test ----------------------------------------------------------------
+echo "[osshp gate] Running tests..."
+bun test
+echo "[osshp gate] Tests: PASS"
+
+# --- Dependency CVE scan -------------------------------------------------
+# Scans all dependencies in bun.lock against the npm advisory database.
+# Exits 1 if any advisory is found (moderate or above).
+# This is a LOCAL gate — never per-commit GitHub CI (cost rule).
+echo "[osshp gate] Scanning dependencies for known CVEs..."
+if ! bun audit; then
+  echo "[osshp gate] CVE scan: FAIL"
+  echo "[osshp gate] Resolve all advisories above before pushing."
+  echo "[osshp gate] See osshp/docs/dependency-update-cadence.md for the update workflow."
+  exit 1
+fi
+echo "[osshp gate] CVE scan: PASS"
+
+# --- Tiptap Cloud/Pro exclusion (compliance, FLAG-2) ---------------------
+# Fails the gate if any proprietary, AGPL-incompatible Tiptap Cloud/Pro tier
+# package is imported or declared. Same gate surface as the CVE scan.
+echo "[osshp gate] Checking for Tiptap Cloud/Pro packages..."
+if ! "$OSSHP_DIR/scripts/check-tiptap-cloud.sh"; then
+  echo "[osshp gate] Tiptap Cloud guard: FAIL"
+  exit 1
+fi
+echo "[osshp gate] Tiptap Cloud guard: PASS"
+
+echo "[osshp gate] Pre-push gate PASSED"

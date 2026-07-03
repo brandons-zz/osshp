@@ -1,0 +1,458 @@
+/* ============================================================================
+   osshp — "Editorial" REFERENCE THEME · Direction A "COLOPHON" (Layer-2)
+   ----------------------------------------------------------------------------
+   A publication's monospace technical apparatus wrapped around serif reading.
+   Furniture (nav / meta / labels / section registers / the ledger index / photo
+   plates / footer): IBM Plex Mono.  Reading (headings / body / pull-quotes):
+   Newsreader (serif, optical sizing).  ZERO chromatic accent — a cool-grey paper
+   + a graded ink ramp carry all hierarchy.  Implements the owner-approved
+   "Colophon" design direction.
+
+   Contract discipline (theme-rendering-contract §4, §5, §7):
+     - Self-contained token sheet: the theme owns its own color/material tokens
+       (--paper/--ink/…) and styles its own classes. It NEVER redefines a Layer-1
+       structural token (type scale, spacing, radii, focus GEOMETRY, motion) —
+       those come from /structural.css.
+     - Accent-free BY DESIGN: reading + furniture surfaces are pure ink in both
+       schemes. The operator's brand accent (already AA-derived by the app,
+       Layer-3 --accent-*/--focus) is honored ONLY on the transient :focus-visible
+       ring — the reconciliation spot named in the build brief — so branding is
+       respected without tinting the accent-free reading surface. Unset ⇒ platform
+       default; the reading identity is complete without any accent.
+     - Fonts are self-hosted woff2 (OFL) below — NO external font CDN.
+   ============================================================================ */
+
+/* ============================================================================
+   Self-hosted fonts (SIL Open Font License 1.1 — AGPL-safe). NO external CDN.
+   IBM Plex Mono (c) IBM Corp.  ·  Newsreader (c) Production Type.  See CREDITS.md.
+   latin + latin-ext woff2 subsets; unicode-range keeps loads lazy.
+   font-display:swap — non-blocking (no render-stall / FOUC), swaps in when ready.
+   ============================================================================ */
+@font-face{font-family:'IBM Plex Mono';font-style:italic;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-mono-400-italic-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:italic;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-mono-400-italic-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-mono-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-mono-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-mono-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-mono-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-mono-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-mono-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Newsreader';font-style:italic;font-weight:400;font-display:swap;src:url('fonts/newsreader-400-italic-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Newsreader';font-style:italic;font-weight:400;font-display:swap;src:url('fonts/newsreader-400-italic-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/newsreader-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/newsreader-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/newsreader-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/newsreader-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/newsreader-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/newsreader-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+
+/* ---- Color tokens: LIGHT (cool-grey paper) — measured AA, direction-a.md §3.1 */
+:root,
+:root[data-scheme="light"]{
+  color-scheme:light;
+  --paper:#F3F4F6;        /* page paper — cool grey, NOT pure white */
+  --surface:#FFFFFF;      /* the rare raised plane */
+  --sunken:#E7E9ED;       /* code wells, ledger hover, plate frames */
+  --ink:#181A1E;          /* primary reading ink — cool near-black  15.83:1 */
+  --ink-muted:#4C4E55;    /* meta / secondary furniture              7.55:1 */
+  --ink-soft:#65676E;     /* captions / plate Nº / ledger Nº         5.13:1 */
+  --rule:#D4D7DD;         /* hairline register rule (decorative, 1.4.11-exempt) */
+  --rule-strong:#83858C;  /* functional border (inputs)              3.35:1 */
+  --plate-a:#C9CCD3;      /* grayscale plate composition stops (prototype demo) */
+  --plate-b:#A4A7AF;
+  --plate-c:#7E818A;
+}
+/* ---- Color tokens: DARK (cool near-black) — direction-a.md §3.2 ---- */
+:root[data-scheme="dark"]{
+  color-scheme:dark;
+  --paper:#15161A;
+  --surface:#1E2025;
+  --sunken:#0E0F12;
+  --ink:#E8E9EC;          /* 14.89:1 */
+  --ink-muted:#A8AAB1;    /*  7.79:1 */
+  --ink-soft:#888A91;     /*  5.24:1 */
+  --rule:#2B2D33;
+  --rule-strong:#717479;  /*  3.85:1 */
+  --plate-a:#34373E;
+  --plate-b:#4A4D55;
+  --plate-c:#63666E;
+}
+
+/* ---- Type roles (theme-local; NOT structural tokens) ---- */
+:root{
+  --serif:'Newsreader','Iowan Old Style','Charter',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace;
+  --measure:66ch;
+  --gutter:clamp(1.25rem,5vw,4.5rem);
+  --edge:1180px;
+}
+
+/* ============================ BASE ====================================== */
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:clamp(1.02rem,0.96rem + 0.3vw,1.18rem);
+  line-height:1.62;
+  font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+a{color:inherit;text-decoration:none;}
+img{max-width:100%;display:block;}
+
+/* Accent-free by design: the ONLY place the operator's brand accent is honored is
+   the transient focus ring. Structural.css sets the geometry + color=var(--focus);
+   --focus is the app's AA-safe accent-text (falls back to ink when the platform
+   supplies no accent). Reading + furniture surfaces stay pure ink. */
+:focus-visible{ outline-color:var(--focus,var(--ink)); }
+
+/* Furniture voice — monospace, the "apparatus" */
+.mono{font-family:var(--mono);}
+.label{
+  font-family:var(--mono);font-size:.72rem;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-muted);
+}
+.regmark{ /* the one ink "mark" that stands in for an accent */
+  display:inline-block;width:.5em;height:.5em;background:var(--ink);
+  vertical-align:.05em;margin-right:.55em;flex:0 0 auto;
+}
+
+/* shared page column */
+.wrap{max-width:var(--edge);margin-inline:auto;padding-inline:var(--gutter);}
+
+/* Section register: "§ 01 · WRITING" */
+.register{
+  font-family:var(--mono);font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-muted);display:flex;align-items:baseline;gap:.85em;flex-wrap:wrap;
+  padding-bottom:.7rem;margin:0 0 1.6rem;border-bottom:1px solid var(--rule);
+}
+.register b{color:var(--ink);font-weight:600;}
+.register .num{color:var(--ink-soft);}
+.register .spacer{flex:1;}
+.register .ghost{color:var(--ink-soft);}
+.register.inline{border:0;padding:0;margin:0 0 .4rem;}
+
+/* ====== SITE HEADER (masthead — sticky nav, issue 003) ================= */
+.site-head-bar{
+  position:sticky;top:0;z-index:50;background:var(--paper);
+}
+.masthead-inner{max-width:var(--edge);margin-inline:auto;padding:1.4rem var(--gutter) 0;}
+.runline{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink-soft);margin:0;
+}
+.site-head{
+  display:flex;align-items:center;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;
+  padding:.7rem 0 1.1rem;border-bottom:1px solid var(--rule);
+}
+.wordmark{
+  font-family:var(--mono);font-weight:600;font-size:.92rem;letter-spacing:.06em;
+  color:var(--ink);display:inline-flex;align-items:center;text-decoration:none;
+}
+.wordmark .glyph-img{width:1.4rem;height:1.4rem;object-fit:cover;margin-right:.55em;filter:grayscale(1);}
+.site-nav{display:flex;gap:1.6rem;flex-wrap:wrap;align-items:center;}
+.site-nav a{
+  font-family:var(--mono);font-size:.74rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-muted);padding-bottom:3px;border-bottom:2px solid transparent;text-decoration:none;
+  transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease);
+}
+.site-nav a:hover{color:var(--ink);}
+.site-nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink);}
+
+/* Visitor light/dark toggle — the only public chrome control (mono, glyph+text,
+   borderless per owner glyph-first pref; focus ring from structural). */
+.scheme-toggle{
+  font-family:var(--mono);font-size:.72rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;display:inline-flex;align-items:center;gap:.5em;
+  padding:.3rem .55rem;border:0;background:transparent;color:var(--ink-muted);
+  transition:color var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.scheme-toggle:hover{color:var(--ink);background:var(--sunken);}
+.scheme-toggle-icon{font-size:.9rem;line-height:1;}
+
+/* ====== HOME ====== */
+/* padding-BLOCK only (issue 012): the old `padding: X 0 0` shorthand set
+   padding-inline:0, clobbering .wrap's gutter (equal specificity, later rule wins
+   per-property) and running the hero flush to the viewport edge at 320px. */
+.home{padding-block:clamp(2.8rem,8vw,6rem) 0;}
+.home h1{
+  font-family:var(--serif);font-weight:500;font-size:clamp(2.7rem,2rem + 5.2vw,4.6rem);
+  line-height:1.02;letter-spacing:-.02em;margin:0;max-width:18ch;color:var(--ink);
+}
+.home h1 em{font-style:italic;font-weight:400;}
+.home .deck{
+  font-family:var(--serif);font-style:italic;font-weight:400;
+  font-size:clamp(1.25rem,1.05rem + 1vw,1.7rem);line-height:1.5;
+  color:var(--ink-muted);max-width:46ch;margin:1.7rem 0 0;
+}
+.home .specline{
+  font-family:var(--mono);font-size:.74rem;letter-spacing:.06em;color:var(--ink-soft);
+  margin:2.1rem 0 0;display:flex;flex-wrap:wrap;gap:.4rem 1.6rem;
+}
+.linkmono{
+  font-family:var(--mono);font-size:.78rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:3px;text-decoration:none;
+  transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease);
+}
+.linkmono:hover{color:var(--ink-muted);border-bottom-color:var(--ink-muted);}
+.linkmono.ghost{color:var(--ink-soft);border-bottom-color:var(--rule-strong);}
+.linkmono.ghost:hover{color:var(--ink);border-bottom-color:var(--ink);}
+.home-ledger{margin-top:clamp(3.6rem,9vw,7rem);}
+.index-link{margin:2.2rem 0 0;}
+
+/* ====== § 00 · SELECTED — the featured showcase (issue 012) ============= */
+/* Cap = 4: one LEAD feature (plate beside text, a magazine opening spread) plus
+   up to three SUPPORTING plates. The asymmetric 1 + 3 composition reads as a
+   curated front table, not a uniform cover grid. Cards are grayscale plates —
+   the theme's single committed image treatment (the base .plate / .plate .plate-img
+   rules are shared with the article cover + photo grid, defined below). */
+.sel{margin-top:clamp(3.4rem,8vw,6.5rem);}
+.sel-grid{
+  list-style:none;margin:0;padding:0;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.6rem 1.7rem;
+}
+.sel-grid li{min-width:0;display:grid;}
+
+/* every card is ONE anchor — one tab stop, plate + caption travel together */
+.feat{display:grid;gap:.85rem;align-content:start;min-width:0;text-decoration:none;}
+
+/* the lead spread */
+li.lead{grid-column:1/-1;}
+.feat.lead{
+  grid-template-columns:minmax(0,3fr) minmax(0,2fr);
+  gap:1.4rem 2.4rem;align-items:end;
+}
+.feat.lead .plate{aspect-ratio:16/10;}
+.feat-txt{display:grid;gap:1rem;align-content:end;min-width:0;padding-bottom:.15rem;}
+
+/* plate aspect + the one new micro-interaction (grayscale contrast lift on hover/
+   focus); base plate sizing/grayscale comes from the shared .plate rules. */
+.feat .plate{aspect-ratio:3/2;}
+.feat .plate-img{transition:filter var(--dur) var(--ease);}
+.feat:hover .plate-img,.feat:focus-visible .plate-img{filter:grayscale(1) contrast(1.16);}
+
+/* caption apparatus — text lives on paper, never on the image */
+.feat-kind{
+  font-family:var(--mono);font-size:.68rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-muted);display:flex;gap:.9em;flex-wrap:wrap;
+}
+.feat-kind .dt{color:var(--ink-soft);letter-spacing:.06em;text-transform:none;}
+.feat-title{
+  font-family:var(--serif);font-weight:500;color:var(--ink);
+  font-size:clamp(1.25rem,1.1rem + .7vw,1.55rem);line-height:1.22;
+  display:inline;width:fit-content;max-width:100%;
+  background-image:linear-gradient(var(--ink),var(--ink));
+  background-size:0% 1px;background-position:0 100%;background-repeat:no-repeat;
+  transition:background-size .2s;padding-bottom:2px;
+}
+.feat:hover .feat-title,.feat:focus-visible .feat-title{background-size:100% 1px;}
+.feat.lead .feat-title{
+  font-size:clamp(1.7rem,1.3rem + 2vw,2.6rem);line-height:1.12;letter-spacing:-.014em;
+}
+.feat-excerpt{
+  font-family:var(--serif);font-size:clamp(1rem,.95rem + .3vw,1.12rem);line-height:1.55;
+  color:var(--ink-muted);margin:0;max-width:42ch;
+}
+.feat-more{font-family:var(--mono);font-size:.7rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);}
+.feat:hover .feat-more{color:var(--ink);}
+
+/* MISSING COVER — the typographic plate. Same sunken field + sharp frame, composed
+   in type: mono kind register top-left, the title itself as serif italic bottom-
+   left. ink on sunken measures 14.33:1 L / 15.79:1 D. */
+.plate.typo{display:grid;align-content:space-between;padding:clamp(.9rem,2.2vw,1.4rem) clamp(1rem,2.4vw,1.5rem);}
+.plate.typo .t-kind{
+  font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-muted);
+}
+.plate.typo .t-title{
+  font-family:var(--serif);font-style:italic;font-weight:500;color:var(--ink);
+  font-size:clamp(1.4rem,1.1rem + 1.4vw,2rem);line-height:1.18;letter-spacing:-.012em;
+  display:inline;width:fit-content;max-width:100%;
+  background-image:linear-gradient(var(--ink),var(--ink));
+  background-size:0% 1px;background-position:0 100%;background-repeat:no-repeat;
+  transition:background-size .2s;padding-bottom:2px;
+}
+.feat:hover .plate.typo .t-title,.feat:focus-visible .plate.typo .t-title{background-size:100% 1px;}
+.feat.lead .plate.typo .t-title{font-size:clamp(1.9rem,1.4rem + 2.6vw,3.1rem);line-height:1.08;}
+.plate.typo .regmark{margin:0 0 .6rem;}
+
+/* ====== WRITING LEDGER (typographic index — no images) ================= */
+.ledger-wrap{padding:clamp(2.5rem,6vw,4.5rem) 0 1rem;}
+.ledger{list-style:none;margin:0;padding:0;}
+.ledger li{position:relative;}
+.ledger a.row{
+  display:grid;grid-template-columns:3.4rem minmax(0,1fr) auto;gap:.3rem 1.6rem;align-items:baseline;
+  padding:1.15rem 0;border-top:1px solid var(--rule);text-decoration:none;
+  transition:background var(--dur) var(--ease);
+}
+.ledger li:last-child a.row{border-bottom:1px solid var(--rule);}
+.ledger a.row:hover{background:var(--sunken);}
+.ledger .no{
+  font-family:var(--mono);font-size:.78rem;color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;letter-spacing:.04em;align-self:start;padding-top:.45rem;white-space:nowrap;
+}
+.ledger .mid{min-width:0;}
+.ledger .title{
+  font-family:var(--serif);font-weight:500;font-size:clamp(1.3rem,1.1rem + .9vw,1.7rem);
+  line-height:1.2;color:var(--ink);display:inline;
+  background-image:linear-gradient(var(--ink),var(--ink));
+  background-size:0% 1px;background-position:0 100%;background-repeat:no-repeat;
+  transition:background-size .2s;padding-bottom:2px;
+}
+.ledger a.row:hover .title,.ledger a.row:focus-visible .title{background-size:100% 1px;}
+.ledger .tags{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-muted);margin-top:.55rem;display:flex;gap:1rem;flex-wrap:wrap;
+}
+.ledger .meta{
+  font-family:var(--mono);font-size:.74rem;color:var(--ink-soft);text-align:right;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;line-height:1.7;align-self:start;
+  padding-top:.45rem;white-space:nowrap;
+}
+.ledger .meta .len{display:block;font-size:.65rem;color:var(--ink-soft);opacity:.75;margin-top:.1rem;}
+.ledger-empty{font-family:var(--mono);font-size:.82rem;letter-spacing:.04em;color:var(--ink-soft);padding:1.4rem 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
+
+/* ====== ARTICLE / PAGE ====== */
+.article{max-width:var(--measure);margin-inline:auto;padding:clamp(2.5rem,6vw,4.5rem) 0 0;}
+.article .backlink{margin-bottom:2.4rem;display:inline-block;}
+.article h1{
+  font-family:var(--serif);font-weight:500;letter-spacing:-.018em;
+  font-size:clamp(2.2rem,1.7rem + 2.6vw,3.3rem);line-height:1.08;margin:.6rem 0 0;color:var(--ink);
+}
+/* the article's own colophon — a mono spec block */
+.spec{
+  font-family:var(--mono);font-size:.74rem;letter-spacing:.04em;color:var(--ink-soft);
+  margin:1.8rem 0 0;padding:1.1rem 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.55rem 1.5rem;
+}
+.spec b{display:block;color:var(--ink-muted);font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:.66rem;margin-bottom:.25rem;}
+.spec span{color:var(--ink);}
+.spec a{color:var(--ink);border-bottom:1px solid var(--rule-strong);text-decoration:none;}
+.spec a:hover{border-bottom-color:var(--ink);}
+
+/* bottom-of-article tag row — mono ghost links */
+.ledger-tags{display:flex;flex-wrap:wrap;gap:.7rem 1.1rem;margin:2.4rem 0 0;}
+.ledger-tags .linkmono{font-size:.7rem;}
+
+/* grayscale plate — the single committed image treatment */
+.plate{position:relative;overflow:hidden;background:var(--sunken);display:block;}
+.plate .plate-img,.plate.plate-img{filter:grayscale(1) contrast(1.04);width:100%;height:100%;object-fit:cover;display:block;}
+.cover{aspect-ratio:21/9;margin:2.6rem 0 .6rem;}
+.plate-cap{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);
+  display:flex;gap:1em;margin:0;
+}
+.plate-cap .n{color:var(--ink-muted);white-space:nowrap;}
+
+.folio{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-soft);
+  text-align:center;margin:3.5rem 0 1rem;
+}
+
+/* ====== SANITIZED BODY PROSE (post / page bodyHtml) ==================== */
+.prose{margin-top:2.6rem;}
+.prose > p{margin:0 0 1.5rem;}
+.prose p.lead,.prose > p:first-of-type{font-size:1.12em;line-height:1.55;color:var(--ink);}
+.prose h2{
+  font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-muted);margin:3.2rem 0 1.3rem;line-height:1.5;
+}
+.prose h3{font-family:var(--serif);font-weight:600;font-size:1.3rem;margin:2.4rem 0 .8rem;color:var(--ink);}
+.prose h4{font-family:var(--serif);font-weight:600;font-size:1.1rem;margin:2rem 0 .7rem;color:var(--ink);}
+.prose a{color:var(--ink);border-bottom:1px solid var(--rule-strong);text-decoration:none;}
+.prose a:hover{border-bottom-color:var(--ink);}
+.prose ul,.prose ol{padding-left:1.35em;margin:0 0 1.5rem;}
+.prose li{margin-bottom:.45rem;}
+.prose img{margin:2.6rem 0;filter:grayscale(1) contrast(1.04);}
+.prose hr{border:0;border-top:1px solid var(--rule);margin:2.6rem 0;}
+
+/* serif-italic pull-quote with a single ink boundary (the only ink rule in prose) */
+.prose blockquote{margin:2.6rem 0;padding:0 0 0 1.4rem;border-left:2px solid var(--ink);}
+.prose blockquote p{
+  font-family:var(--serif);font-style:italic;font-weight:400;
+  font-size:clamp(1.4rem,1.2rem + 1vw,1.85rem);line-height:1.38;color:var(--ink);margin:0 0 1rem;
+}
+.prose blockquote cite,.prose blockquote footer{
+  display:block;font-family:var(--mono);font-style:normal;font-size:.72rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-soft);
+}
+
+/* code — sunken well, mono, tonal (no chromatic syntax color) */
+.prose :not(pre) > code{
+  font-family:var(--mono);font-size:.88em;background:var(--sunken);color:var(--ink);
+  padding:.12em .38em;
+}
+.prose pre{
+  margin:2.4rem 0;background:var(--sunken);color:var(--ink);
+  padding:1rem 1.1rem;overflow-x:auto;font-family:var(--mono);font-size:.86rem;line-height:1.75;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.prose pre code{font-family:inherit;font-size:inherit;background:none;padding:0;color:inherit;white-space:pre;}
+
+/* ====== PHOTOS — numbered grayscale plates (photo-grid + .glightbox hooks) === */
+.gallery-wrap{padding:clamp(2.5rem,6vw,4.5rem) 0 1rem;}
+.photo-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:.65rem;
+}
+.photo-grid .photo-tile{margin:0;display:grid;gap:.55rem;}
+.photo-grid .glightbox{
+  position:relative;display:block;overflow:hidden;background:var(--sunken);
+  aspect-ratio:1/1;cursor:zoom-in;
+}
+.photo-grid .glightbox .plate-img{
+  width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.04);display:block;
+}
+.photo-grid figcaption{margin:0;}
+/* Panoramic plate: span-2 wide tile with 21:9 aspect ratio */
+.photo-grid .photo-tile.wide{grid-column:span 2;}
+.photo-grid .photo-tile.wide .glightbox{aspect-ratio:21/9;}
+
+/* ====== FOOTER COLOPHON ====== */
+.colophon{margin-top:clamp(4rem,10vw,8rem);border-top:1px solid var(--rule);}
+.colophon .inner{
+  max-width:var(--edge);margin-inline:auto;padding:2.6rem var(--gutter) 3.4rem;
+  display:grid;grid-template-columns:1fr auto;gap:1.6rem 2rem;align-items:end;
+}
+.colophon .note{font-family:var(--mono);font-size:.74rem;line-height:1.85;color:var(--ink-soft);max-width:52ch;margin:0;}
+.colophon .note b{color:var(--ink-muted);font-weight:500;}
+.colophon .fnav{display:flex;flex-direction:column;gap:.5rem;text-align:right;}
+.colophon .fnav a{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);text-decoration:none;}
+.colophon .fnav a:hover{color:var(--ink);}
+.colophon .stamp{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;color:var(--ink-soft);
+  grid-column:1/-1;padding-top:1.6rem;border-top:1px solid var(--rule);margin:0;
+}
+.colophon .stamp a{color:var(--ink-muted);text-decoration:none;border-bottom:1px solid var(--rule-strong);}
+.colophon .stamp a:hover{color:var(--ink);}
+.colophon .footer-extra{grid-column:1/-1;font-family:var(--mono);font-size:.68rem;color:var(--ink-soft);}
+
+/* ====== REFLOW ====== */
+/* § 00 Selected: 3 → 2 cols at 900, lead stacks (plate above text) below 760,
+   → 1 col at 640. The grid stays left-anchored; empty columns are whitespace. */
+@media (max-width:900px){
+  .sel-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:760px){
+  .feat.lead{grid-template-columns:1fr;align-items:start;}
+  .feat-txt{align-content:start;padding-bottom:0;}
+}
+@media (max-width:640px){
+  .sel-grid{grid-template-columns:1fr;}
+}
+@media (max-width:680px){
+  .colophon .inner{grid-template-columns:1fr;}
+  .colophon .fnav{flex-direction:row;flex-wrap:wrap;gap:1rem;text-align:left;}
+}
+@media (max-width:560px){
+  .ledger a.row{grid-template-columns:2.6rem 1fr;}
+  .ledger .meta{grid-column:2;text-align:left;padding-top:.6rem;}
+}
+@media (max-width:520px){
+  .photo-grid{grid-template-columns:1fr;}
+  .photo-grid .photo-tile.wide{grid-column:span 1;} /* revert span-2 on single-column layout */
+  .photo-grid .photo-tile.wide .glightbox{aspect-ratio:21/9;}
+}

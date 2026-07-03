@@ -1,0 +1,18 @@
+# Build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment files (never commit .env — only .env.example is tracked)
+.env
+.env.local
+.env.*.local
+
+# Bun lockfile (committed — tracks exact deps)
+# bun.lock — tracked intentionally
+
+# IDE
+.DS_Store
+*.swp

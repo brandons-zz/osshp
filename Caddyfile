@@ -1,0 +1,11 @@
+# osshp Caddyfile
+#
+# Caddy terminates TLS in-stack. For a real domain, Caddy automatically
+# obtains a Let's Encrypt certificate (ports 80 + 443 must be reachable).
+# For local dev (OSSHP_DOMAIN=localhost), Caddy uses its internal CA.
+#
+# The {$OSSHP_DOMAIN} env substitution is set in docker-compose.yml.
+
+{$OSSHP_DOMAIN} {
+    reverse_proxy app:3000
+}

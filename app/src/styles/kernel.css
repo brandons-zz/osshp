@@ -1,0 +1,220 @@
+/* ============================================================================
+   osshp — owned-component KERNEL styles
+   ----------------------------------------------------------------------------
+   Styling for the minimal owned-component kernel (Button, Link, Prose). Reads
+   ONLY semantic tokens (Layer-2/3, theme-owned) and Layer-1 structural tokens —
+   never raw hex (ui-component-contract §5.1). Keyword fallbacks (currentColor /
+   inherit) keep the kernel renderable before the theme layer (M1.4) supplies
+   the semantic color values; the design-language §3 palette has already proven
+   --accent-solid / --on-accent / --accent-text / --text pairings meet WCAG 2.1
+   AA in both schemes, and contrast is re-gated against the real rendered theme
+   at M1.10. Class names are prefixed `osshp-` to keep the global kernel namespace
+   distinct from theme and module CSS.
+   ============================================================================ */
+
+/* --- Button: accent-filled, bounded by its fill (no border per owner pref:
+   small controls satisfy 1.4.11 via fill/text, not a visible border) -------- */
+.osshp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  padding: var(--space-2xs) var(--space-s);
+  border: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-solid, transparent);
+  color: var(--on-accent, currentColor);
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.osshp-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- Link: accent-text colored anchor; focus ring from :focus-visible ------ */
+.osshp-link {
+  color: var(--accent-text, currentColor);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Prose: constrained reading container --------------------------------- */
+.osshp-prose {
+  max-width: var(--measure-prose);
+  font-family: var(--font-body);
+  font-size: var(--text-prose);
+  line-height: var(--leading-normal);
+  color: var(--text, inherit);
+}
+
+/* --- Button: danger modifier (destructive / delete actions) --------------- */
+/* Ghost style: red text + red outline, no fill — clearly destructive but    */
+/* lower visual weight than a solid red fill. --danger-text is ≥4.5:1 in    */
+/* both shell.css light/dark themes.                                          */
+.osshp-button--danger {
+  background-color: transparent;
+  color: var(--danger-text, currentColor);
+  box-shadow: inset 0 0 0 var(--border-thick) var(--danger-text, currentColor);
+}
+.osshp-button--danger:hover:not(:disabled) {
+  background-color: var(--danger-text, currentColor);
+  color: var(--surface, currentColor);
+}
+
+/* --- ImageDropzone: drag-and-drop + click-to-pick upload control ---------- */
+/* Idle state: dashed border drop zone with instructional text + pick button. */
+/* Drag-over: border and background shift to accent to signal readiness.      */
+/* Keyboard path: the "Choose file" button (a native <button>) is the only   */
+/* tab stop; the hidden <input> is tabIndex=-1.                               */
+/* --border-ui (shell.css) meets WCAG 1.4.11 ≥3:1 vs --surface in both       */
+/* light (3.28:1) and dark (3.24:1); --border is decorative-exempt and too   */
+/* low-contrast (1.41:1 L / 1.43:1 D) for an interactive UI boundary.        */
+.osshp-dropzone {
+  border: var(--border-thick) dashed var(--border-ui);
+  border-radius: var(--radius-md);
+  background: var(--surface, transparent);
+  padding: var(--space-m);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xs);
+  text-align: center;
+  cursor: default;
+  transition:
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+.osshp-dropzone[data-drag-over] {
+  border-color: var(--accent-text, currentColor);
+  background-color: var(--surface-2, var(--surface, transparent));
+}
+.osshp-dropzone[data-busy] {
+  cursor: wait;
+}
+.osshp-dropzone[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Visually hide the native file input; it is triggered programmatically.   */
+.osshp-dropzone__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.osshp-dropzone__hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted, currentColor);
+}
+
+/* --- ConfirmDialog: themed accessible modal ------------------------------- */
+/* Native <dialog showModal()> supplies focus trapping and Esc-to-cancel.    */
+/* ::backdrop uses rgb() (not a hex literal) so the no-hex rule is honored.  */
+.osshp-dialog {
+  background: var(--surface, white);
+  color: var(--text, inherit);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-l);
+  max-width: min(90vw, 28rem);
+  width: 100%;
+  box-shadow: 0 var(--space-2xs) var(--space-m) rgb(0 0 0 / 16%);
+}
+.osshp-dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+.osshp-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+.osshp-dialog-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+}
+.osshp-dialog-desc {
+  margin: 0 0 var(--space-m);
+  color: var(--text-muted, currentColor);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+.osshp-dialog-actions {
+  display: flex;
+  gap: var(--space-2xs);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* --- MarkdownHelp: help-trigger button + scrollable reference dialog ------ */
+/* The "?" trigger is a small, monospace-styled affordance; the dialog is a  */
+/* scrollable reference panel, wider than the confirm dialog.                 */
+.osshp-md-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  border: var(--border-hairline) solid var(--border);
+  background: transparent;
+  color: var(--text-muted, currentColor);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.osshp-md-help-btn:hover {
+  background: var(--surface-2, transparent);
+  color: var(--text, currentColor);
+}
+.osshp-md-help-dialog {
+  max-width: min(90vw, 36rem);
+  max-height: 75vh;
+  overflow-y: auto;
+}
+.osshp-md-help-section {
+  margin-bottom: var(--space-m);
+}
+.osshp-md-help-section:last-of-type {
+  margin-bottom: var(--space-s);
+}
+.osshp-md-help-section h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted, currentColor);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--space-3xs);
+}
+.osshp-md-help-row {
+  display: flex;
+  gap: var(--space-s);
+  align-items: baseline;
+  padding: var(--space-3xs) 0;
+}
+.osshp-md-help-syntax {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted, currentColor);
+  flex: 0 0 auto;
+  min-width: 10rem;
+}
+.osshp-md-help-desc {
+  font-size: var(--text-sm);
+  color: var(--text, inherit);
+}

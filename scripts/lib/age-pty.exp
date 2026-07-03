@@ -1,0 +1,93 @@
+#!/usr/bin/env expect
+# age-pty.exp — drive `age -p` through a real pseudo-terminal so its
+# mandatory terminal-based passphrase prompt can be satisfied
+# non-interactively (cron / scripted disaster recovery).
+#
+# WHY THIS EXISTS: `age -p` intentionally has NO way to accept a
+# passphrase other than an interactive terminal — no flag, no env var,
+# no stdin/fd convention. This is a deliberate upstream design choice
+# (see https://github.com/FiloSottile/age/discussions/256 and #275): the
+# maintainers keep passphrase entry interactive-only in the reference
+# CLI and point scripted/automated use at recipient/identity (public
+# key) mode instead. osshp's backup/restore model needs a genuine
+# shared-secret PASSPHRASE (not a key file — see docs/backup-restore.md
+# "Why passphrase mode, not a key file"), so for the non-interactive
+# path this script allocates a real pty (via `expect`/Tcl, whose job is
+# exactly this: driving interactive terminal programs from a script) and
+# feeds the passphrase from BACKUP_PASSPHRASE directly into the pty
+# `send` call inside this Tcl interpreter. The passphrase is NEVER
+# placed on any process's command line (argv) and is NEVER written to a
+# file — it travels: environment variable -> Tcl interpreter memory ->
+# pty. See docs/backup-restore.md for the full delivery-channel writeup.
+#
+# Usage: age-pty.exp <enc|dec> <shell-command>
+#   <shell-command> is executed via `bash -c` and is expected to invoke
+#   `age -p` itself, e.g.:
+#     enc: tar cf - -C "$STAGING" . | age -p -o "$OUT_FILE"
+#     dec: age -d "$BACKUP_FILE" | tar xf - -C "$EXTRACTED"
+#   BACKUP_PASSPHRASE must already be set in the environment.
+#   Exit code mirrors the exit code of the bash -c invocation.
+
+set timeout 60
+log_user 0
+
+if {$argc != 2} {
+    puts stderr "usage: age-pty.exp <enc|dec> <shell-command>"
+    exit 2
+}
+set mode [lindex $argv 0]
+set cmd  [lindex $argv 1]
+
+if {$mode ne "enc" && $mode ne "dec"} {
+    puts stderr "age-pty.exp: mode must be 'enc' or 'dec', got '$mode'"
+    exit 2
+}
+if {![info exists ::env(BACKUP_PASSPHRASE)] || $::env(BACKUP_PASSPHRASE) eq ""} {
+    puts stderr "age-pty.exp: BACKUP_PASSPHRASE not set"
+    exit 2
+}
+
+spawn bash -c $cmd
+
+# Track whether the spawned process has already exited (eof) so we never
+# issue a second `expect` against an already-closed spawn id — that is a
+# hard Tcl error ("spawn id exp5 not open"), not a clean failure, and it
+# can happen for real: the wrapped command can die before ever prompting
+# (missing `age` binary, an immediate error, a killed process).
+set closed 0
+
+expect {
+    "Enter passphrase*" {
+        send -- "$env(BACKUP_PASSPHRASE)\r"
+    }
+    timeout {
+        puts stderr "age-pty.exp: timed out waiting for age's passphrase prompt"
+        catch {close}
+        exit 1
+    }
+    eof {
+        set closed 1
+    }
+}
+
+if {$mode eq "enc" && !$closed} {
+    expect {
+        "Confirm passphrase*" {
+            send -- "$env(BACKUP_PASSPHRASE)\r"
+        }
+        timeout {
+            puts stderr "age-pty.exp: timed out waiting for age's confirm-passphrase prompt"
+            catch {close}
+            exit 1
+        }
+        eof {
+            set closed 1
+        }
+    }
+}
+
+if {!$closed} {
+    expect eof
+}
+catch wait result
+exit [lindex $result 3]

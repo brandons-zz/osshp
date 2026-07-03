@@ -1,0 +1,23 @@
+# docker-compose.dev.yml — LOCAL DEV ONLY. Never point this at a reachable host.
+#
+# Serves the app on plain HTTP at :9090, bypassing the Caddy TLS proxy, and
+# disables the Secure flag on session cookies (SESSION_COOKIE_INSECURE=true)
+# so a plain-HTTP session cookie is still accepted by the browser.
+#
+# Compose does NOT auto-merge this file. (It auto-merges a file only when it
+# is literally named `docker-compose.override.yml` — this repo has no such
+# file, and never will; see the note at the top of docker-compose.yml and
+# issue 022.) You must opt in explicitly:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# A bare `docker compose up` (no -f docker-compose.dev.yml) always serves
+# over Caddy/HTTPS with Secure cookies — this file cannot change that by
+# accident, by being copied, or by being committed.
+
+services:
+  app:
+    ports:
+      - "9090:3000"
+    environment:
+      SESSION_COOKIE_INSECURE: "true"
