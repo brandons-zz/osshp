@@ -13,6 +13,26 @@ import "@/styles/shell.css";
 export const metadata: Metadata = {
   title: "osshp",
   description: "Open-source self-hostable platform",
+  // Default osshp brand favicon for the app shell (setup wizard, login,
+  // admin console) — every osshp instance gets this out of the box, no
+  // per-operator config required. Next's Metadata API expands these into
+  // <link rel="icon">/<link rel="apple-touch-icon"> tags; all same-origin
+  // static assets under public/, so CSP img-src 'self' already covers them.
+  icons: {
+    icon: [
+      // SVG first — SVG-capable browsers prefer it and get the simplified
+      // house-in-hex mark crisp at every size; the .ico + PNG sizes are the
+      // fallback (16/32/48 from the simplified mark, 192/512 the full badge).
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-48x48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default async function RootLayout({

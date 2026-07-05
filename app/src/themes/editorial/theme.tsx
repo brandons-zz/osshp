@@ -1054,6 +1054,22 @@ export const editorialTheme: ThemeManifest = {
             <meta name="description" content={description} />
           ) : null}
           <link rel="canonical" href={ctx.route.canonicalUrl} />
+          {/* osshp brand favicon — default for every instance, no operator
+              config required. Same-origin static assets under public/, so CSP
+              img-src 'self' already covers them; plain <link> tags need no
+              nonce. The SVG comes first: SVG-capable browsers prefer it and get
+              the simplified house-in-hex mark crisp at every size. The .ico +
+              PNG sizes (16/32/48 rendered from the same simplified mark; 192/512
+              the full badge) are the fallback for browsers without SVG-favicon
+              support. */}
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+          <link rel="icon" href="/favicon.ico" sizes="any" />
+          <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+          <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+          <link rel="icon" href="/favicon-48x48.png" type="image/png" sizes="48x48" />
+          <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+          <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           {/* Open Graph + Twitter Card tags — derived from content, not hardcoded. */}
           <OgMeta ctx={ctx} />
           {/* App-provided no-flash hook, before any stylesheet or body (§6).

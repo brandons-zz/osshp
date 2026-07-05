@@ -15,22 +15,42 @@ import { sanitizeAccent, sanitizeFontFamily } from "@/lib/theme/brand";
 // so that no dangerous URL ever reaches the database or the rendered page.
 
 /**
+ * Returns true when `value` is a genuine same-site relative path: a leading
+ * `/` NOT followed by a second `/` or `\`.
+ *
+ * A bare leading `/` is not sufficient — browsers treat both `//host` and
+ * `/\host` as protocol-relative URLs and resolve them against the *current*
+ * protocol to an arbitrary external origin (e.g. `//evil.example.com` on an
+ * https page resolves to `https://evil.example.com`). A naive
+ * `startsWith("/")` check lets these through as if they were same-site paths
+ * (issue 078). Requiring the second character to be neither `/` nor `\`
+ * rejects both variants while still accepting ordinary paths like `/media/x`
+ * and the bare root `/`.
+ */
+function isSameSitePath(value: string): boolean {
+  if (!value.startsWith("/")) return false;
+  const second = value[1];
+  return second !== "/" && second !== "\\";
+}
+
+/**
  * Returns true when `url` is safe for use as an image src attribute:
- * a relative path starting with `/`, or an absolute http/https URL.
+ * a same-site relative path starting with `/` (but not `//` or `/\`), or an
+ * absolute http/https URL.
  *
  * Scheme comparison is case-insensitive so `HTTPS://…` and `JavaScript:…`
  * are handled correctly. `data:`, `blob:`, and `javascript:` variants are
  * all rejected by construction — they do not appear in the whitelist.
  */
 export function isSafeUrl(url: string): boolean {
-  if (url.startsWith("/")) return true;
+  if (isSameSitePath(url)) return true;
   const lower = url.toLowerCase();
   return lower.startsWith("http://") || lower.startsWith("https://");
 }
 
 /**
  * Returns true when `href` is safe for use as a nav/social link href:
- * - relative path starting `/`
+ * - same-site relative path starting `/` (but not `//` or `/\`)
  * - in-page fragment starting `#`
  * - absolute http/https URL
  * - mailto: link
@@ -38,7 +58,7 @@ export function isSafeUrl(url: string): boolean {
  * `javascript:`, `data:`, `vbscript:`, and any other scheme are rejected.
  */
 export function isSafeHref(href: string): boolean {
-  if (href.startsWith("/") || href.startsWith("#")) return true;
+  if (isSameSitePath(href) || href.startsWith("#")) return true;
   const lower = href.toLowerCase();
   return (
     lower.startsWith("http://") ||

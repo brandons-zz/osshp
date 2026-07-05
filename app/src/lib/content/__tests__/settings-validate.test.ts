@@ -1,9 +1,12 @@
 // Unit tests for settings-validate.ts — pure module, no I/O or DB required.
 //
-// Covers three security hardening areas (per security-gate findings):
+// Covers four security hardening areas (per security-gate findings):
 //   F1 — site.logo src scheme whitelist (reject javascript:/data:)
 //   F2 — site.nav/social per-item shape filter (drop malformed items)
 //   F3 — site.nav/social href scheme whitelist (reject javascript:)
+//   issue 078 — protocol-relative (`//host`) and backslash-variant (`/\host`)
+//     URLs rejected; a bare leading `/` is only safe when NOT followed by a
+//     second `/` or `\` (browsers resolve both as protocol-relative)
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -39,6 +42,20 @@ describe("isSafeUrl", () => {
   test("rejects blob:", () => {
     expect(isSafeUrl("blob:https://example.com/some-uuid")).toBe(false);
   });
+
+  // ── issue 078 — protocol-relative / backslash-variant hardening ──────────
+  test("issue 078 — rejects protocol-relative //host (resolves to external origin)", () => {
+    expect(isSafeUrl("//evil.example.com/phish")).toBe(false);
+  });
+  test("issue 078 — rejects backslash-variant /\\host (browsers treat /\\ like //)", () => {
+    expect(isSafeUrl("/\\evil.example.com/phish")).toBe(false);
+  });
+  test("issue 078 — a genuine same-site path with a single leading / still passes", () => {
+    expect(isSafeUrl("/media/logo.png")).toBe(true);
+  });
+  test("issue 078 — the bare root path / still passes", () => {
+    expect(isSafeUrl("/")).toBe(true);
+  });
 });
 
 describe("isSafeHref", () => {
@@ -71,6 +88,20 @@ describe("isSafeHref", () => {
   });
   test("rejects vbscript:", () => {
     expect(isSafeHref("vbscript:MsgBox(1)")).toBe(false);
+  });
+
+  // ── issue 078 — protocol-relative / backslash-variant hardening ──────────
+  test("issue 078 — rejects protocol-relative //host (resolves to external origin)", () => {
+    expect(isSafeHref("//evil.example.com/phish")).toBe(false);
+  });
+  test("issue 078 — rejects backslash-variant /\\host (browsers treat /\\ like //)", () => {
+    expect(isSafeHref("/\\evil.example.com/phish")).toBe(false);
+  });
+  test("issue 078 — a genuine same-site path with a single leading / still passes", () => {
+    expect(isSafeHref("/path")).toBe(true);
+  });
+  test("issue 078 — an in-page fragment still passes", () => {
+    expect(isSafeHref("#fragment")).toBe(true);
   });
 });
 

@@ -154,6 +154,19 @@ export const skeletonTheme: ThemeManifest = {
           {site.description ? (
             <meta name="description" content={site.description} />
           ) : null}
+          {/* osshp brand favicon — default for every instance, no operator
+              config required. Same-origin static assets under public/, so
+              CSP img-src 'self' already covers them. SVG first (crisp
+              simplified mark on SVG-capable browsers); .ico + PNG sizes are
+              the fallback. */}
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+          <link rel="icon" href="/favicon.ico" sizes="any" />
+          <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+          <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+          <link rel="icon" href="/favicon-48x48.png" type="image/png" sizes="48x48" />
+          <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+          <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           {/* App-provided no-flash hook, placed before stylesheets (§6).
               nonce-carried so it runs under the nonce-based CSP (A1). */}
           <script
