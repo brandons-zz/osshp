@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>osshp Dependency Matrix</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .meta { color: #666; font-size: 0.875rem; margin-bottom: 2rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { background: #f3f4f6; text-align: left; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; font-weight: 600; }
+  td { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .green { background: #dcfce7; color: #166534; }
+  .yellow { background: #fef9c3; color: #854d0e; }
+  .red { background: #fee2e2; color: #991b1b; }
+  .gray { background: #f3f4f6; color: #374151; }
+  .note { font-size: 0.8rem; color: #555; margin-top: 0.25rem; }
+  h2 { font-size: 1.1rem; margin-top: 2.5rem; margin-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.25rem; }
+  .legend { display: flex; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<h1>osshp — Dependency Matrix</h1>
+<p class="meta">
+  Established: M1.1 (2026-06-29) &mdash; updated at each milestone closeout.<br>
+  This matrix tracks the infrastructure and app stack for the osshp platform.<br>
+  Separate from an earlier internal project's <code>docs/dependency-matrix.html</code>.
+</p>
+
+<div class="legend">
+  <span><span class="badge green">Active</span> actively maintained</span>
+  <span><span class="badge yellow">Monitor</span> watch for issues</span>
+  <span><span class="badge red">Risk</span> known concern</span>
+  <span><span class="badge gray">N/A</span> not applicable</span>
+</div>
+
+<h2>Infrastructure Services (Docker Compose)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Image / Tag</th>
+      <th>Version</th>
+      <th>Health</th>
+      <th>AGPL-3.0 Compat</th>
+      <th>Platform</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Caddy</strong> (reverse proxy)</td>
+      <td><code>caddy:2-alpine@sha256:5f5c8640…</code></td>
+      <td>v2.x</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (Apache-2.0)</td>
+      <td>linux/amd64, linux/arm64</td>
+      <td>Auto-HTTPS. TLS terminates in-stack — app must set Secure cookies by default. External process; no NOTICE entry required. <strong>Digest-pinned M2.6</strong> (full hash in docker-compose.yml).</td>
+    </tr>
+    <tr>
+      <td><strong>PostgreSQL</strong> (database)</td>
+      <td><code>postgres:17-alpine@sha256:dc17045c…</code></td>
+      <td>17.x</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (PostgreSQL License)</td>
+      <td>linux/amd64, linux/arm64</td>
+      <td>Content + settings store. Client: postgres.js (MIT) — added when M1.3 wires up the schema. <strong>Digest-pinned M2.6</strong> (full hash in docker-compose.yml).</td>
+    </tr>
+    <tr>
+      <td><strong>Garage</strong> (object storage)</td>
+      <td><code>dxflrs/garage:v2.3.0@sha256:866bd13e…</code></td>
+      <td>v2.3.0</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (AGPL-3.0)</td>
+      <td>linux/amd64, linux/arm64, linux/arm, linux/386 — <strong>CONFIRMED multi-arch</strong> (verified 2026-06-29 via docker buildx imagetools)</td>
+      <td>Replaces archived MinIO server (archived 2026-04-25). S3 API; minio npm client works unchanged. Single-node (replication_factor=1). Requires one-time provisioning after first start. <strong>Digest-pinned M2.6</strong> (full hash in docker-compose.yml).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Runtime (M1.1 skeleton)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Package</th>
+      <th>Version</th>
+      <th>License</th>
+      <th>Health</th>
+      <th>AGPL-3.0 Compat</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Next.js</strong></td>
+      <td>^15.3.0</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td>App Router + standalone output. ATTRIBUTION required in CREDITS.</td>
+    </tr>
+    <tr>
+      <td><strong>Bun</strong> (runtime)</td>
+      <td>1.x (^1.3)</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td>Non-official Next.js runtime; team-proven in prior production use. Used for build + production server. ATTRIBUTION required in CREDITS. Docker base image: <code>oven/bun:1-alpine@sha256:5acc90a9…</code> — <strong>digest-pinned M2.6</strong> (full hash in app/Dockerfile ARG BUN_BASE).</td>
+    </tr>
+    <tr>
+      <td><strong>React</strong></td>
+      <td>^19.0.0</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td>Required by Next.js App Router.</td>
+    </tr>
+    <tr>
+      <td><strong>react-dom</strong></td>
+      <td>^19.0.0</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td>Required by Next.js App Router.</td>
+    </tr>
+    <tr>
+      <td><strong>@radix-ui/react-slot</strong></td>
+      <td>^1.3.0</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td>Headless UI primitive (Layer A) — <strong>Radix UI chosen over React Aria in M1.2</strong> (ADR 0001). Owned-component kernel (Button/Link/Prose) composes it; more Radix primitives added in Phase 1 as the reference inventory is built. ATTRIBUTION in CREDITS.</td>
+    </tr>
+    <tr>
+      <td><strong>unified / remark-parse / remark-rehype / rehype-parse / rehype-sanitize / rehype-stringify</strong></td>
+      <td>unified ^11, remark-* ^11, rehype-* ^9–10, rehype-sanitize ^6</td>
+      <td>MIT</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td><strong>Installed at M1.4</strong> (pulled forward from the M2.3 plan): the app-owned sanitization boundary the theme engine requires (theme-rendering-contract §9 names this exact pipeline). Two processors — markdown→sanitized-HTML (bodies) and HTML-fragment→sanitized-HTML (module slots). M2.3 extends these processors (editor features, code highlighting) but inherits this boundary. ATTRIBUTION in CREDITS.</td>
+    </tr>
+    <tr>
+      <td><strong>sharp</strong></td>
+      <td>^0.34.5</td>
+      <td>Apache-2.0 (libvips: LGPL-2.1+ via dynamic link)</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td><strong>Installed at M2.7.</strong> Image resize + EXIF/GPS strip. Service: <code>app/src/lib/media/processor.ts</code> (<code>processImage</code>). EXIF/GPS stripped by default (privacy floor — travel-photo location protection). Callable by the M2.9 upload pipeline. Node-only (not imported by Edge middleware). ATTRIBUTION in CREDITS.</td>
+    </tr>
+    <tr>
+      <td><strong>Media pipeline (M2.9)</strong></td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES</td>
+      <td><strong>Built at M2.9.</strong> <code>lib/media/storage.ts</code> (minio→Garage seam), <code>lib/media/upload.ts</code> (<code>storeUploadedImage</code>: raw bytes → M2.7 EXIF/GPS-stripped variants → store → linked media record), <code>app/api/admin/media/route.ts</code> (Uppy upload, guardMutation+session, multipart), <code>app/media/[...key]/route.ts</code> (public serve from Garage). Post <code>coverImage</code> wired through create/edit routes + the editor's Uppy field. Media renders on the public post page via the theme (<code>&lt;img&gt;</code> → <code>/media/&lt;key&gt;</code>). SSRF (A10): uploads only — no media-by-URL/remote fetch. Runtime-verified end-to-end (upload→Garage→serve→render, EXIF-stripped).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App UI Layer (M1.2 owned-component kernel)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Layer-1 structural tokens</strong></td>
+      <td><code>app/public/structural.css</code></td>
+      <td>n/a (defines tokens on <code>:root</code>)</td>
+      <td>App-owned, theme-immutable. Type scale, spacing, radii, border widths, layout measures, focus geometry, motion. A theme MUST NOT redefine any (theme = color/material only). <strong>Served as a static asset at <code>/structural.css</code></strong> (moved from <code>src/styles</code> at M1.8) so the public theme route handlers AND the app shell load one canonical sheet; the app shell <code>&lt;link&gt;</code>s it, themes link it via the engine's structural href.</td>
+    </tr>
+    <tr>
+      <td><strong>Kernel component styles</strong></td>
+      <td><code>app/src/styles/kernel.css</code></td>
+      <td>Layer-1 + semantic (Layer-2/3) tokens</td>
+      <td>No raw hex (gated by test). Semantic color values supplied by the theme layer in M1.4.</td>
+    </tr>
+    <tr>
+      <td><strong>Owned-component kernel</strong></td>
+      <td><code>app/src/components/ui/</code> (Button, Link, Prose, index)</td>
+      <td><code>@radix-ui/react-slot</code> + semantic tokens</td>
+      <td>Layer B (osshp-owned). Button composes Radix Slot (asChild); Link/Prose over native elements. 2.1.1/4.1.2 from native/primitive; focus-visible from structural sheet. Contrast re-gated at M1.10.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Data Layer (M1.3 content + settings core)</h2>
+<p class="note">
+  PostgreSQL schema + stores for the spec §8 content model. Stores depend only on the
+  <code>Db</code> executor seam (<code>app/src/lib/db/types.ts</code>): production binds it to
+  <code>postgres</code> (postgres.js); tests bind it to in-process PGlite (real PostgreSQL/WASM),
+  so the pre-push gate exercises identical SQL with no external database.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Db executor seam</strong></td>
+      <td><code>app/src/lib/db/types.ts</code></td>
+      <td>n/a (interface)</td>
+      <td>Single <code>query(text, params)</code> seam; every store depends on this, not a concrete client.</td>
+    </tr>
+    <tr>
+      <td><strong>Production client</strong></td>
+      <td><code>app/src/lib/db/client.ts</code></td>
+      <td><code>postgres</code>, <code>@/lib/config</code>, migrate, settings</td>
+      <td>Server-only. <code>getDb()</code> (globalThis-cached pool) + <code>initializeDatabase()</code> (migrate + seed, idempotent).</td>
+    </tr>
+    <tr>
+      <td><strong>Migrations + runner</strong></td>
+      <td><code>app/src/lib/db/migrations.ts</code>, <code>migrate.ts</code></td>
+      <td>Db seam</td>
+      <td>Idempotent + restart-safe (schema_migrations tracking + IF NOT EXISTS). Status = TEXT + CHECK (draft/published/scheduled), not a PG ENUM.</td>
+    </tr>
+    <tr>
+      <td><strong>Test Db (PGlite)</strong></td>
+      <td><code>app/src/lib/db/test-support.ts</code></td>
+      <td><code>@electric-sql/pglite</code> (devDependency)</td>
+      <td>Test-only — never imported by app code, so PGlite is not traced into the bundle (build-verified).</td>
+    </tr>
+    <tr>
+      <td><strong>Content stores</strong></td>
+      <td><code>app/src/lib/content/</code> (posts, pages, tags, media, settings, admin-user, index)</td>
+      <td>Db seam</td>
+      <td>posts/pages expose published-only reads (theme boundary §3.3). settings carry public/admin visibility (default admin, §3.4) — admin/secret settings cannot reach a theme. media/admin-user FIELDS modeled now; their pipelines/auth are M2/M1.6.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Theme Engine (M1.4 theme rendering contract)</h2>
+<p class="note">
+  Implementation of the theme rendering contract described in <code>docs/theme-author-guide.md</code>:
+  the swappable app&harr;theme seam. The app owns WHAT (data, routing, scheme resolution, the AA guardrail,
+  sanitization, structural tokens); a theme owns HOW IT LOOKS. All modules live under
+  <code>app/src/lib/theme/</code> and depend only on the M1.3 content stores (published-only reads +
+  <code>getPublicSettings</code>) — never on admin/secret data.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Contract types</strong></td>
+      <td><code>app/src/lib/theme/types.ts</code></td>
+      <td>react (type only)</td>
+      <td>ThemeManifest, ThemeRenderContext (public-only by shape — no admin/secret field), ThemeContent, public projections, ResolvedBrandTokens, ThemeSlotId, branded <code>SanitizedHtml</code> (mintable only by the sanitizer).</td>
+    </tr>
+    <tr>
+      <td><strong>Sanitization boundary</strong></td>
+      <td><code>app/src/lib/theme/sanitize.ts</code></td>
+      <td>unified/remark/rehype-sanitize</td>
+      <td>App-owned untrusted-output boundary (§9). <code>renderMarkdown</code> (bodies) + <code>sanitizeHtmlFragment</code> (module slots) are the only producers of <code>SanitizedHtml</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>AA guardrail</strong></td>
+      <td><code>app/src/lib/theme/brand.ts</code>, <code>color.ts</code></td>
+      <td>(pure math, no deps)</td>
+      <td>Derives already-AA-safe accent tokens app-side (§7). Pure luminance math (no model). Proven for Blue/Teal/Rose both schemes; Teal-light auto-picks dark on-accent. <code>brandTokensToCss</code> emits both schemes for a pure-attribute-flip toggle.</td>
+    </tr>
+    <tr>
+      <td><strong>Scheme + no-flash hook</strong></td>
+      <td><code>app/src/lib/theme/scheme.ts</code></td>
+      <td>—</td>
+      <td>Two-state light/dark resolution (visitor override → operator default → prefers-color-scheme); app-provided pre-paint inline script (§6).</td>
+    </tr>
+    <tr>
+      <td><strong>Theme + slot registry</strong></td>
+      <td><code>app/src/lib/theme/registry.ts</code></td>
+      <td>—</td>
+      <td>Swap seam (register a ThemeManifest, zero app change, §4) + slot registry the M1.5 module contract plugs into (collect/order SanitizedSlotOutput by ThemeSlotId, §8).</td>
+    </tr>
+    <tr>
+      <td><strong>Render-context builder</strong></td>
+      <td><code>app/src/lib/theme/context.ts</code></td>
+      <td>@/lib/content (published-only reads + getPublicSettings), sanitize, brand, scheme, registry</td>
+      <td>Composes the public-only ThemeRenderContext per route. Admin/secret material is unreachable BY CONSTRUCTION — settings only via getPublicSettings, content only via published-only reads, bodies sanitized before entering the context.</td>
+    </tr>
+    <tr>
+      <td><strong>Engine</strong></td>
+      <td><code>app/src/lib/theme/engine.ts</code>, <code>index.ts</code></td>
+      <td>context, brand, scheme, types</td>
+      <td>Render-target routing (§3.2) with fallback (tag→post-list, not-found→default), manifest validation, document-shell assembly (injects the no-flash hook + Layer-3 brand CSS), and <code>renderRequest</code> end-to-end.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Auth Core (M1.6 auth)</h2>
+<p class="note">
+  Crown-jewel surface. Implements the auth direction recorded in ADR
+  <code>docs/decisions/0002-auth-core.md</code>: first-party revocable sessions
+  (NOT Auth.js), SimpleWebAuthn passkey ceremony with RP-ID pinned from config,
+  single-use setup bootstrap, default-deny middleware choke point, per-lane rate
+  limiting. NO-GO gates #1/#2/#4/#5/#7 hold from first deploy. Independent
+  security gate = M1.7. Layered recovery (password+TOTP, recovery codes, CLI
+  break-glass) = M2.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Edge-safe byte helpers</strong></td>
+      <td><code>app/src/lib/auth/bytes.ts</code></td>
+      <td>Web Crypto global</td>
+      <td>hex + CSPRNG + UTF-8, no node:crypto/Buffer — safe to import into Edge middleware.</td>
+    </tr>
+    <tr>
+      <td><strong>Session store</strong></td>
+      <td><code>app/src/lib/auth/sessions.ts</code></td>
+      <td>@/lib/db (type), config, bytes, Web Crypto</td>
+      <td>First-party, revocable: 256-bit CSPRNG id, HMAC cookie (<code>&lt;id&gt;.&lt;hmac&gt;</code>), rotation (S3), expiry (S5), revokeAll (S4), Secure-by-default cookie (S2). <strong>M2.1: validateSession also enforces an idle-timeout (A07) — rejects when now−last_seen_at &gt; config.sessionIdleMs, alongside the absolute TTL; active use slides the window.</strong> Edge-safe.</td>
+    </tr>
+    <tr>
+      <td><strong>Default-deny access logic</strong></td>
+      <td><code>app/src/lib/auth/access.ts</code></td>
+      <td>(pure)</td>
+      <td>normalizePath (known bypass-path set incl. ../traversal resolution, H2), deny-by-default allowlist (H1), principal-header strip (H3). Edge-safe.</td>
+    </tr>
+    <tr>
+      <td><strong>Middleware choke point</strong></td>
+      <td><code>app/src/middleware.ts</code></td>
+      <td>access, sessions (signature verify)</td>
+      <td>Layer-1 stateless gate; authoritative revocable check is validateSession in handlers. Edge bundle stays lean (no WebAuthn/Buffer traced in).</td>
+    </tr>
+    <tr>
+      <td><strong>Single-use challenge store</strong></td>
+      <td><code>app/src/lib/auth/challenges.ts</code></td>
+      <td>@/lib/db</td>
+      <td>One row per ceremony type; consume = delete-returning + TTL (W1, no replay).</td>
+    </tr>
+    <tr>
+      <td><strong>Bootstrap gate</strong></td>
+      <td><code>app/src/lib/auth/bootstrap.ts</code></td>
+      <td>@/lib/content/admin-user</td>
+      <td>resolveRegistrationMode fail-closed: bootstrap only until admin exists, then authenticated step-up (NO-GO #1/#2).</td>
+    </tr>
+    <tr>
+      <td><strong>WebAuthn ceremony</strong></td>
+      <td><code>app/src/lib/auth/webauthn.ts</code>, <code>encoding.ts</code></td>
+      <td>@simplewebauthn/server, @/lib/content/admin-user, challenges, bootstrap, config</td>
+      <td>rpConfig pinned from config never headers (W2/NO-GO #4); userVerification required (W4); attestation none (W7); synced-passkey-tolerant counter (W6). Node-only.</td>
+    </tr>
+    <tr>
+      <td><strong>Per-lane rate limiting</strong></td>
+      <td><code>app/src/lib/auth/rate-limit.ts</code></td>
+      <td>(in-memory), config</td>
+      <td>Fixed-window limiter per lane (login/register/bootstrap); every lane throttled (H4/NO-GO #7). Per-process (single-instance self-host). <strong>M2.1: exports clientIp() (trusted-proxy-aware) as the single source of source-IP — the audit log reuses it so throttling and logging agree on the client.</strong> <strong>Issue 070: config.trustedProxyHops correctness depends on topology — direct mode is 1 hop (Caddy), Cloudflare Tunnel mode is 2 (Cloudflare edge + Caddy); <code>scripts/setup.sh --mode tunnel</code> writes <code>OSSHP_TRUSTED_PROXY_HOPS=2</code>, direct mode leaves the default (1). See docs/setup-runbook.md → "Trusted proxy hops".</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Auth API routes</strong></td>
+      <td><code>app/src/app/api/auth/{register,login}/{options,verify}/route.ts</code>, <code>logout</code>, <code>status</code></td>
+      <td>@/lib/auth, @/lib/db/client</td>
+      <td>Thin adapters over the lib (lane gating + rate limit + session cookie). No admin reset is network-reachable (NO-GO #5). <strong>M2.1: every mutating handler wrapped in guardMutation (CSRF + no-store) and emits audit events (login success/failure, passkey enroll/failure, session.revoke, rate_limit.trip).</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Migration 0002</strong></td>
+      <td><code>app/src/lib/db/migrations.ts</code></td>
+      <td>—</td>
+      <td>sessions + auth_challenges tables.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Auth Hardening (M2.1)</h2>
+<p class="note">
+  Cross-cutting auth-security primitives every recovery lane (M2.2) and new mutating
+  route consumes, built before those surfaces so they are born compliant (a retrofitted
+  CSRF guard is worse than one built in). Covers CSRF protection, audit logging,
+  a SESSION_SECRET strength floor, and idle-session timeout. Independent security gate = M2.3.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>CSRF guard (guardMutation)</strong></td>
+      <td><code>app/src/lib/auth/csrf.ts</code></td>
+      <td>config (origin)</td>
+      <td>Same-origin guard for state-changing requests (A3): host-comparison of Origin/Referer vs the operator-pinned <code>config.origin</code> (NOT a fixed allowlist; Caddy/tunnel-safe). Missing header fails closed; safe methods pass. <code>guardMutation()</code> wraps a handler — rejects cross-site mutating requests 403 and stamps <code>Cache-Control: no-store</code>; SameSite=Lax (sessions.ts) unchanged. Pure/Edge-safe (not imported by middleware today; per-route).</td>
+    </tr>
+    <tr>
+      <td><strong>Auth audit-log seam</strong></td>
+      <td><code>app/src/lib/auth/audit.ts</code></td>
+      <td>rate-limit (clientIp)</td>
+      <td>Structured one-line JSON per auth event (A09): event/outcome/ts/source-IP. <code>redactDetails()</code> is the enforced "no secrets in logs" backstop — secret-bearing keys replaced with [REDACTED] recursively. Pluggable sink (test seam); never throws into the auth path. Node-only (not in Edge bundle).</td>
+    </tr>
+    <tr>
+      <td><strong>SESSION_SECRET strength floor</strong></td>
+      <td><code>app/src/lib/auth/secret-strength.ts</code></td>
+      <td>(pure)</td>
+      <td>Length (≥32) + distinct-char (≥8) + weak-literal floor (A02). <code>assertSessionSecretStrength()</code> called from instrumentation.register() — fails LOUD at boot on a weak secret (e.g. <code>changeme</code>); a real <code>openssl rand -hex 32</code> secret passes.</td>
+    </tr>
+    <tr>
+      <td><strong>Boot guard wiring</strong></td>
+      <td><code>app/src/instrumentation.ts</code></td>
+      <td>secret-strength</td>
+      <td>register() asserts the SESSION_SECRET floor (nodejs runtime) before DB init — a forgeable-cookie instance never starts.</td>
+    </tr>
+    <tr>
+      <td><strong>Idle-timeout config</strong></td>
+      <td><code>app/src/lib/config.ts</code></td>
+      <td>env</td>
+      <td>Adds <code>sessionIdleMs</code> (SESSION_IDLE_MS, default 24h) — the idle window validateSession enforces (A07).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Layered Recovery Lanes (M2.2)</h2>
+<p class="note">
+  The single-identity model has no peer-admin recovery, so the layered recovery chain
+  IS the compensating control and is held to the same bar as the primary passkey auth.
+  Holds to the NO-GO gates set for this surface (password-AND-TOTP, break-glass-local-only,
+  no-plaintext-at-rest). Builds on the M2.1 primitives (guardMutation, audit, revokeAllSessions).
+  Single-admin shape (decision D1 locked — a peer-admin recovery lane deliberately NOT built).
+  Independent security gate = M2.3.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Password hashing (argon2id)</strong></td>
+      <td><code>app/src/lib/auth/password.ts</code></td>
+      <td>Bun.password (runtime)</td>
+      <td>argon2id via the Bun runtime (no native dep in the standalone build). Per-call salt; <code>verifyPassword</code> false on null/garbage, never throws (B1). The fallback lane is password AND TOTP — this is only the password half (NO-GO #3).</td>
+    </tr>
+    <tr>
+      <td><strong>TOTP (otplib)</strong></td>
+      <td><code>app/src/lib/auth/totp.ts</code></td>
+      <td>otplib (pure-JS Noble crypto)</td>
+      <td>RFC 6238 via otplib (do-not-hand-roll). Window ≤ ±1 step (epochTolerance = one period, T4). <code>verifyTotp</code> returns the matched absolute step (from <code>delta</code>) for one-time-per-step replay rejection (T2). ≥160-bit secret (T1). Epoch-injectable for deterministic tests.</td>
+    </tr>
+    <tr>
+      <td><strong>Secret-at-rest box</strong></td>
+      <td><code>app/src/lib/auth/secret-box.ts</code></td>
+      <td>node:crypto, config (encryptionKey)</td>
+      <td>AES-256-GCM for the TOTP secret at rest (T1/NO-GO #6). Key from <code>OSSHP_ENCRYPTION_KEY</code> — an absent key is a CLEAR config error, never silent plaintext. Tamper-detecting (auth tag); random IV per encrypt. Node-only.</td>
+    </tr>
+    <tr>
+      <td><strong>Recovery codes</strong></td>
+      <td><code>app/src/lib/auth/recovery-codes.ts</code></td>
+      <td>node:crypto</td>
+      <td>CSPRNG ~100-bit codes (B5/R1); stored salted-SHA-256 hashed, never plaintext (R2); single-use on consume (R3); plaintext returned ONCE at generation (R4). Constant-time per-entry compare. Node-only.</td>
+    </tr>
+    <tr>
+      <td><strong>Re-enrollment grant</strong></td>
+      <td><code>app/src/lib/auth/reenroll.ts</code></td>
+      <td>@/lib/db</td>
+      <td>A recovery event opens a time-boxed <code>admin_user.reenroll_until</code> window granting RE-ENROLLMENT, not standing access (R6) — issues no session. <code>resolveRegistrationMode</code> adds a "reenroll" lane gated on this window; cleared the instant a new passkey is verified.</td>
+    </tr>
+    <tr>
+      <td><strong>Recovery orchestration</strong></td>
+      <td><code>app/src/lib/auth/recovery.ts</code></td>
+      <td>password, totp, secret-box, recovery-codes, sessions (revokeAllSessions), reenroll, audit, admin-user</td>
+      <td>The lanes: <code>verifyPasswordAndTotp</code> (BOTH factors; password alone never authenticates; one-time-per-step), <code>enrollTotp</code>/<code>confirmTotp</code> (verify-before-enable, T5), <code>regenerateRecoveryCodes</code>, <code>consumeRecoveryCode</code> (single-use + revoke-all + open re-enrollment, S4/R6), <code>breakGlassReset</code> (revoke-all + fresh codes + re-enroll + audit). session.revoke_all emitted where revokeAllSessions is called. Node-only.</td>
+    </tr>
+    <tr>
+      <td><strong>Recovery auth routes</strong></td>
+      <td><code>app/src/app/api/auth/recovery/{password-totp,code}/route.ts</code></td>
+      <td>@/lib/auth, @/lib/db/client</td>
+      <td>Public lanes (reachable unauthenticated via the <code>/api/auth/</code> allowlist prefix). guardMutation-wrapped; rate-limited as account lockout (B4, trusted-proxy-aware key, reset on success); audit-emitting (recovery.success/failure, lockout). password-totp rotates a session; code issues none (re-enrollment grant).</td>
+    </tr>
+    <tr>
+      <td><strong>Admin credential routes</strong></td>
+      <td><code>app/src/app/api/admin/account/{password,totp,recovery-codes}/route.ts</code></td>
+      <td>@/lib/auth, @/lib/platform (getSessionFromRequest)</td>
+      <td>Authenticated credential management (default-deny + handler re-validate). guardMutation-wrapped; a credential change revokes all sessions (S4) and reissues a fresh one for the operator; audit-emitting (credential.change, session.revoke_all). TOTP secret returned only once at enroll.</td>
+    </tr>
+    <tr>
+      <td><strong>CLI break-glass</strong></td>
+      <td><code>app/scripts/admin-break-glass.ts</code></td>
+      <td>@/lib/db/client, @/lib/auth (breakGlassReset)</td>
+      <td>Local-exec ONLY — there is deliberately NO HTTP route (NO-GO #5). Takes no secret as an argument (B2); prints fresh recovery codes once (generated server-side). Run via <code>bun run admin:break-glass</code> / <code>docker compose exec</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Recovery-lane limiters + audit events</strong></td>
+      <td><code>app/src/lib/auth/rate-limit.ts</code>, <code>audit.ts</code></td>
+      <td>config</td>
+      <td>rate-limit adds <code>passwordTotpLimiter</code> + <code>recoveryCodeLimiter</code> (the account-lockout control, B4 — reuses the existing two-layer limiter; key = trusted-proxy-aware clientKey). audit extends the event union: recovery.success/failure, lockout, break_glass, credential.change.</td>
+    </tr>
+    <tr>
+      <td><strong>Encryption-key config</strong></td>
+      <td><code>app/src/lib/config.ts</code></td>
+      <td>env</td>
+      <td>Adds <code>encryptionKey</code> (OSSHP_ENCRYPTION_KEY, required) — the TOTP-secret-at-rest key; absent = clear config error.</td>
+    </tr>
+    <tr>
+      <td><strong>Migration 0003</strong></td>
+      <td><code>app/src/lib/db/migrations.ts</code></td>
+      <td>—</td>
+      <td>admin_user: <code>totp_enabled</code> (verify-before-enable), <code>totp_last_step</code> (one-time-per-step), <code>reenroll_until</code> (re-enrollment window). password_hash/totp_secret/recovery_codes already modeled in 0001.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Platform Security Hardening (M2.4 — headers/CSP/brand-token validation/issue 005)</h2>
+<p class="note">
+  Security headers + a nonce-based CSP for the full-takeover admin surface,
+  brand-token CSS-injection validation at the emission boundary, and the setup
+  accent-color swatch (<code>issues/005</code>). The per-request nonce is Edge-safe (Web Crypto
+  <code>getRandomValues</code>, never node:crypto). Independent security gate = M2.5.
+  Shares <code>middleware.ts</code> with M2.1 (integration-pass before the gate).
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Security headers + CSP</strong></td>
+      <td><code>app/src/lib/security/headers.ts</code></td>
+      <td>Web Crypto global + <code>btoa</code> (no node:crypto/Buffer)</td>
+      <td>A1/A2. <code>generateNonce()</code> (base64 of 16 CSPRNG bytes, Edge-safe), <code>buildContentSecurityPolicy(nonce)</code> (script-src nonce + strict-dynamic, style-src nonce, form-action 'self', frame-ancestors 'none', object-src/base-uri locked — no exploitable unsafe-inline), <code>securityHeaders(nonce, path)</code> (CSP + X-Frame-Options DENY + nosniff + Referrer-Policy + Permissions-Policy + HSTS; admin/setup/login/api → X-Robots-Tag noindex). Imported by middleware (kept Edge-safe).</td>
+    </tr>
+    <tr>
+      <td><strong>Middleware (nonce + headers)</strong></td>
+      <td><code>app/src/middleware.ts</code></td>
+      <td>access, sessions, <code>@/lib/security/headers</code></td>
+      <td>M2.4: every response (forward/401/redirect) carries the full security-header set; the per-request nonce + CSP are also set on the FORWARDED request headers so Next auto-nonces its framework scripts and the public theme route handlers read <code>x-nonce</code>. Edge bundle stays lean (35.8 kB, no WebAuthn/Buffer traced in).</td>
+    </tr>
+    <tr>
+      <td><strong>Root layout (dynamic for nonce)</strong></td>
+      <td><code>app/src/app/layout.tsx</code></td>
+      <td>next/headers</td>
+      <td>M2.4: reads the per-request nonce header to opt every app-shell page into dynamic rendering — statically prerendered pages carry no per-request nonce and the strict-dynamic CSP would block their scripts (verified: <code>/login</code> went static→dynamic; all framework scripts now nonced at runtime).</td>
+    </tr>
+    <tr>
+      <td><strong>Brand-token validation</strong></td>
+      <td><code>app/src/lib/theme/brand.ts</code></td>
+      <td>(pure)</td>
+      <td>A03-G1: <code>sanitizeAccent</code> (hex-clamp → safe default) + <code>sanitizeFontFamily</code> (CSS-safe allowlist; rejects <code>;{}&lt;&gt;@()/\</code> and <code>&lt;/style&gt;</code>/<code>@import</code> breakout) applied inside <code>resolveBrandTokens</code> — the EMISSION boundary, covering every write path (setup, future branding panel, import), not just the setup route. An injected value never reaches the inline <code>&lt;style&gt;</code>; it falls back to a safe value rather than throwing.</td>
+    </tr>
+    <tr>
+      <td><strong>Theme nonce wiring</strong></td>
+      <td><code>app/src/lib/theme/{types.ts,engine.ts}</code>, <code>app/src/lib/platform/render.ts</code></td>
+      <td>—</td>
+      <td>M2.4: <code>DocumentShell.nonce</code> threaded through <code>renderPage</code>/<code>renderRequest</code>; <code>renderPublicRoute</code> reads <code>x-nonce</code> from the request and passes it down. The theme stamps it on every inline script/style.</td>
+    </tr>
+    <tr>
+      <td><strong>Setup accent swatch (issue 005)</strong></td>
+      <td><code>app/src/app/setup/AccentSwatch.tsx</code> (+ <code>SetupWizard.tsx</code>)</td>
+      <td>—</td>
+      <td>Live preview of the picked accent: swatch reflects the color, hex shown as text (not color-only, 1.4.1), swatch border = non-text boundary (1.4.11), works both schemes. Dynamic color applied client-side (this sub-tree renders only after the wizard leaves "loading"), so no inline-style CSP exception is needed.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>App Vertical Slice (M1.8 setup wizard + admin shell + Blog module)</h2>
+<p class="note">
+  The walking-skeleton vertical slice an operator can drive end-to-end: first-run setup
+  (admin provision via the M1.6 single-use bootstrap → name/brand → choose modules) → admin
+  shell → write/publish a Blog post → the public site renders it through the theme engine.
+  Public pages are <strong>Route Handlers</strong> (not pages) so the theme owns the full
+  <code>&lt;html&gt;</code> document (theme-rendering-contract §3.2); the app shell (setup/login/admin)
+  are normal Next pages behind the default-deny middleware. Admin UI is built from the owned
+  components only.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Artifact</th>
+      <th>Path</th>
+      <th>Reads / depends on</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Platform wiring</strong></td>
+      <td><code>app/src/lib/platform/index.ts</code></td>
+      <td>theme registry, module registry, content/settings, sessions, next/headers</td>
+      <td>Singletons: theme registry (<strong>editorial</strong> reference theme + skeleton fallback; <code>site.activeTheme</code> default = <code>editorial</code>) + module registry (Blog). <code>getActiveTheme</code>, <code>isModuleEnabled</code>, <code>getEnabledCapabilities</code> (admin nav projection), session helpers (<code>getAdminSession</code>/<code>getSessionFromRequest</code>).</td>
+    </tr>
+    <tr>
+      <td><strong>Public render path</strong></td>
+      <td><code>app/src/lib/platform/render.ts</code></td>
+      <td>theme engine (<code>renderRequest</code>), module slot hooks, react-dom/server (dynamic import)</td>
+      <td>Separate from index.ts because it imports <code>react-dom/server</code> (forbidden in the component graph; index.ts is imported by admin components). Collects enabled modules' theme-hook slots → renders the active theme to an HTML Response. Only public route handlers import it.</td>
+    </tr>
+    <tr>
+      <td><strong>Editorial reference theme (M1.9)</strong></td>
+      <td><code>app/src/themes/editorial/theme.tsx</code> + <code>app/public/themes/editorial/theme.css</code></td>
+      <td>theme contract types; <code>SCHEME_STORAGE_KEY</code>; structural + brand tokens (via <code>/structural.css</code> + app-injected brand CSS)</td>
+      <td>The one polished "Editorial Clarity" <code>ThemeManifest</code> an operator gets out of the box (default <code>site.activeTheme</code>). Implements all required render targets (document/home/post/page/post-list + optional tag/not-found), two-state light/dark, the <code>head.meta</code> slot, and the visitor light/dark toggle (the ONLY public chrome control — no prototype demo-harness bar). <strong>Issue 003: persistent/sticky site header</strong> (brand + primary nav reachable while scrolling, desktop + mobile). Color/material only — reads semantic + structural tokens, never redefines a structural token, never re-derives the app-guardrail accent; ships its own Layer-2 token sheet. AA: palette is the measured design-language set (both schemes); reflow verified scrollWidth==innerWidth at 320/360/390. Live integration/AA gate at M1.10. <strong>M2.4: nonce-wired — the no-flash hook, brand-token <code>&lt;style&gt;</code>, and visitor-toggle scripts carry <code>shell.nonce</code> (CSP A1); visual design unchanged.</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Skeleton theme (fallback)</strong></td>
+      <td><code>app/src/themes/skeleton/theme.tsx</code> + <code>app/public/themes/skeleton/theme.css</code></td>
+      <td>theme contract types; structural + brand tokens</td>
+      <td>A minimal, app-bundled <code>ThemeManifest</code> proving public content renders end-to-end through the engine. Retained as a registered fallback behind the Editorial reference theme (same render path). Color/material only; ships its own Layer-2 token sheet.</td>
+    </tr>
+    <tr>
+      <td><strong>Blog module</strong></td>
+      <td><code>app/src/modules/blog/manifest.ts</code></td>
+      <td>module contract types</td>
+      <td>First real <code>ModuleManifest</code>: public reading routes (/blog, /blog/[slug], /tags/[slug] → theme targets), admin authoring routes (/admin/blog* → default-deny), <code>post</code> content type → <code>post</code> render target, public/admin settings split, a footer.widgets theme hook. <code>onDisable</code> preserves posts.</td>
+    </tr>
+    <tr>
+      <td><strong>Photos module (M2.11)</strong></td>
+      <td><code>app/src/modules/photos/manifest.ts</code>, <code>app/src/app/photos/route.ts</code>, <code>app/src/app/admin/photos/{page,new,[id]/edit}</code>, <code>app/src/app/api/admin/photos/posts/{route.ts,[id]/route.ts}</code></td>
+      <td>module contract, content store (posts type='photo-post'), platform render path, <code>photo-list</code> render target, GLightbox (vendored), shared <code>PostEditor</code></td>
+      <td><strong>Built at M2.11.</strong> <code>ModuleManifest</code> (photos): public <code>/photos</code> grid → <code>photo-list</code> render target; admin authoring (/admin/photos* → default-deny) reuses the shared <code>PostEditor</code> (now config-parameterized) + dedicated guardMutation+session POST/PATCH forcing type='photo-post'. The grid is a render target (NOT a slot — sanitized slot HTML strips the <code>.glightbox</code>/data-* hooks). EXIF/GPS strip inherited from the M2.9 upload path. <code>onDisable</code> preserves photo posts (rows stay in core <code>posts</code>; /photos goes inert). Lightbox loaded by the theme on /photos only, nonce-carried (CSP-clean).</td>
+    </tr>
+    <tr>
+      <td><strong>Render target append: <code>photo-list</code> (M2.11)</strong></td>
+      <td><code>lib/theme/types.ts</code>, <code>lib/theme/context.ts</code>, <code>lib/theme/engine.ts</code>, <code>themes/editorial/theme.tsx</code> (+ <code>public/themes/editorial/theme.css</code>), <code>themes/skeleton/theme.tsx</code></td>
+      <td>theme contract enum (append-only)</td>
+      <td><strong>Sanctioned new public shape</strong> (module-contract §3.3: "a new public shape = coordinated theme-contract enum append"). <code>photo-list</code> added to <code>ContentTargetId</code>/<code>CONTENT_TARGET_IDS</code> + <code>ThemeContent</code>/<code>RouteInfo</code> + <code>RouteRequest</code>; NOT in <code>REQUIRED_CONTENT_TARGETS</code> (graceful fallback → <code>post-list</code>). Editorial renders the grid + loads GLightbox; skeleton renders a plain list (no lightbox). <code>listPublishedPosts</code> gained a <code>type</code> filter.</td>
+    </tr>
+    <tr>
+      <td><strong>Home rework: intro + featured showcase (issue 012)</strong></td>
+      <td><code>lib/db/migrations.ts</code> (0007 <code>featured</code> col), <code>lib/content/{types,posts,index}.ts</code>, <code>lib/content/{settings,settings-validate}.ts</code> (<code>home.intro</code>), <code>lib/theme/{types,context}.ts</code>, <code>themes/editorial/theme.tsx</code> (+ <code>public/themes/editorial/theme.css</code>), <code>app/admin/blog/PostEditor.tsx</code> + blog/photos edit pages + <code>api/admin/{blog,photos}/posts</code> routes, <code>app/admin/settings/{page,SettingsForm}.tsx</code>, <code>lib/export/frontmatter.ts</code> + <code>lib/import/{schema,types,importer}.ts</code></td>
+      <td>content store (<code>featured</code> flag + <code>listPublishedFeatured</code>), public settings (<code>home.intro</code>), theme <code>home</code> content variant, PostEditor toggle, export/import round-trip</td>
+      <td><strong>Built at issue 012.</strong> New <code>featured</code> boolean on <code>posts</code> (both types; mirrors <code>show_in_blog</code>) with an admin editor toggle; new public <code>home.intro</code> setting (serif-italic deck, unset ⇒ omitted, no fallback). The <code>home</code> <code>ThemeContent</code> variant carries <code>featured</code> (≤4, server-side random rotation via <code>selectFeatured</code>, newest-first), <code>featuredTotal</code>, and <code>intro</code>. Editorial "§ 00 · Selected" showcase = 1 lead spread + ≤3 supporting grayscale plates (typographic plate when a cover is missing); degrades 3→2→1; zero featured ⇒ section omitted; ledger trimmed to 6 recent + full-index link. <code>featured</code> round-trips in export/import frontmatter. Fixed the <code>.home</code> <code>padding</code>-shorthand vs <code>.wrap</code> gutter clobber at 320px (→ <code>padding-block</code>). AA verified on rendered output both schemes (min 5.13:1); reflow clean 320/390; featured cards single tab stops with 3px focus ring.</td>
+    </tr>
+    <tr>
+      <td><strong>Public route handlers</strong></td>
+      <td><code>app/src/app/route.ts</code>, <code>app/src/app/blog/{route.ts,[slug]/route.ts}</code>, <code>app/src/app/tags/[slug]/route.ts</code></td>
+      <td>platform render path, content store</td>
+      <td>Theme-rendered public site. <code>/</code> redirects to /setup before an admin exists, else renders the home. Published-only (§3.3): an unpublished/unknown slug → theme not-found + 404.</td>
+    </tr>
+    <tr>
+      <td><strong>Setup wizard + login</strong></td>
+      <td><code>app/src/app/setup/page.tsx</code>, <code>app/src/app/login/page.tsx</code>, <code>app/src/app/api/setup/route.ts</code></td>
+      <td>@simplewebauthn/browser, auth status/register/login APIs, settings, module enable</td>
+      <td>Wizard: create admin passkey (single-use bootstrap) → name/brand → choose modules → /admin. <code>/api/setup</code> saves name/brand + enables modules + marks complete (authed, default-deny). <code>/setup</code> + <code>/login</code> added to the public allowlist (H1 explicit-add). <strong>M2.4: the brand step shows a live accent-color swatch (issue 005, <code>AccentSwatch.tsx</code>).</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Admin shell + Blog authoring</strong></td>
+      <td><code>app/src/app/admin/</code> (layout, page, blog/{page,new,[id]/edit}, PostEditor, LogoutButton), <code>app/src/app/api/admin/blog/posts/{route.ts,[id]/route.ts}</code></td>
+      <td>owned components, content store, platform session helpers</td>
+      <td>Admin layout validates the session (revocation) + redirects to /login; nav projected from enabled modules' adminNav. Minimal Markdown-textarea editor (full TipTap = M2.3). Create/PATCH publish APIs re-validate the session (default-deny + authoritative check).</td>
+    </tr>
+    <tr>
+      <td><strong>App-shell styles</strong></td>
+      <td><code>app/src/styles/shell.css</code></td>
+      <td>Layer-1 structural tokens</td>
+      <td>The app shell is app-owned (not theme-rendered), so it carries its own neutral Layer-2 palette + admin/wizard/login layout. Contrast re-gated on real components at M1.10.</td>
+    </tr>
+    <tr>
+      <td><strong>Default-deny allowlist (extended)</strong></td>
+      <td><code>app/src/lib/auth/access.ts</code></td>
+      <td>(pure)</td>
+      <td>M1.8 explicit-add (H1): public <code>/setup</code>, <code>/login</code>, <code>/blog</code>(+prefix), <code>/structural.css</code>, <code>/themes/</code>. <strong>M2.11 explicit-add: <code>/photos</code> + <code>/vendor/</code> (vendored GLightbox assets).</strong> <code>/admin/*</code> and <code>/api/admin/*</code> remain protected.</td>
+    </tr>
+    <tr>
+      <td><strong>jsonb parity fix</strong></td>
+      <td><code>app/src/lib/db/client.ts</code> (<code>applyJsonColumnParsers</code>)</td>
+      <td>postgres.js result column OIDs</td>
+      <td><strong>Defect surfaced by the M1.8 runtime smoke:</strong> under Bun, postgres.js returns json/jsonb columns as raw JSON TEXT (PGlite parses them), so the live theme render 500'd on an unparsed accent string. The client seam now JSON.parses json/jsonb columns by OID, matching the PGlite test gate. Regression test: <code>app/src/lib/db/__tests__/json-parse.test.ts</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Admin module toggle (issue 027)</strong></td>
+      <td><code>app/src/lib/module/lifecycle.ts</code> (<code>setEnabledModules</code>), <code>app/src/app/api/admin/modules/route.ts</code>, <code>app/src/app/admin/settings/{page.tsx,ModulesPanel.tsx}</code></td>
+      <td>module registry (<code>list()</code>/<code>valid</code>), <code>enableModule</code>/<code>disableModule</code>, platform session helpers</td>
+      <td><strong>Built at issue 027.</strong> Closes the gap the M4 docs pass surfaced: <code>site.enabledModules</code> had no admin-console write path post-setup. A dedicated <code>/api/admin/modules</code> route (GET list + PATCH the full desired set) — deliberately NOT folded into the generic <code>/api/admin/settings</code> allowlist, because that route blanket-writes public visibility and skips the onEnable/onDisable lifecycle hooks; <code>site.enabledModules</code> is admin-visibility (settings.ts) and toggling it must run each hook (module-contract §5). <code>setEnabledModules</code> rejects the WHOLE request (400, no partial writes) if any requested id is not a registered, valid module. Rendered as a structured checklist in Settings (<code>ModulesPanel.tsx</code>, mirrors the setup wizard's <code>.choice</code> module-selection rows) — real checkbox+label per module, native keyboard/focus semantics. Disabled modules were already unreachable on the public site and dropped from admin nav (every module route self-checks <code>isModuleEnabled</code>; <code>AdminLayout</code> projects nav from <code>getEnabledCapabilities</code>) — this issue only added the missing write surface. Lockout safeguard: Settings/Account security/Export/Import/Dashboard are hardcoded literal links in <code>AdminLayout</code>, outside the module-driven nav array, so disabling every module can never strand the operator (regression-guarded: <code>app/src/app/admin/__tests__/admin-layout-core-links.test.ts</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Supply-Chain Security (M2.6)</h2>
+<p class="note">
+  Hardening installed at M2.6 (2026-06-29). See <code>osshp/docs/dependency-update-cadence.md</code>
+  for the bump workflow and scheduled cadence.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Control</th>
+      <th>Where</th>
+      <th>Status</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Image digest pinning</strong></td>
+      <td><code>osshp/docker-compose.yml</code>, <code>osshp/app/Dockerfile</code></td>
+      <td><span class="badge green">Active</span></td>
+      <td>All service + base images pinned <code>:tag@sha256:&lt;digest&gt;</code>. Covers postgres, caddy, garage, oven/bun. OWASP A05-G2 / A06-G2 / A08-G1.</td>
+    </tr>
+    <tr>
+      <td><strong>Dependency CVE scan (pre-push gate)</strong></td>
+      <td><code>osshp/scripts/pre-push</code></td>
+      <td><span class="badge green">Active</span></td>
+      <td><code>bun audit</code> step added. Exits 1 on any advisory — blocks the push. Local gate, never per-commit GitHub CI (cost rule). OWASP A06-G1. Pairs with the M2.8 TipTap-cloud CI guard on the same gate surface.</td>
+    </tr>
+    <tr>
+      <td><strong>Tiptap Cloud/Pro exclusion guard (pre-push gate)</strong></td>
+      <td><code>osshp/scripts/check-tiptap-cloud.sh</code> &rarr; <code>osshp/scripts/pre-push</code></td>
+      <td><span class="badge green">Active</span></td>
+      <td>M2.8. Fails the build if any proprietary Tiptap Cloud/Pro tier package (<code>@tiptap-pro/*</code>, <code>@tiptap-cloud/*</code>, <code>@hocuspocus/*</code>, <code>@tiptap/extension-collaboration*</code>) is imported or declared. Library-audit FLAG-2; same gate surface as the CVE scan. Tested (planted-import fixture).</td>
+    </tr>
+    <tr>
+      <td><strong>postcss advisory (RESOLVED M2.8)</strong></td>
+      <td><code>app/package.json</code> overrides &rarr; <code>bun.lock</code></td>
+      <td><span class="badge green">Cleared</span></td>
+      <td><code>postcss &lt;8.5.10</code> moderate XSS (GHSA-qx2v-qp2m-jg93) <strong>cleared</strong> via a <code>postcss: ^8.5.10</code> override. next@15.5.19 (latest stable) still bundles postcss &lt;8.5.10 and only next-16 (beta) carries the fix, so the advisory was cleared with a patch-level override rather than forcing a beta major (brief's defer-if-risky guidance). <code>bun audit</code> now reports no vulnerabilities; build + tests pass.</td>
+    </tr>
+    <tr>
+      <td><strong>Compose override auto-merge footgun closed (issue 022)</strong></td>
+      <td><code>osshp/docker-compose.yml</code>, <code>osshp/docker-compose.dev.yml</code>, <code>osshp/.gitignore</code></td>
+      <td><span class="badge green">Active</span></td>
+      <td>Compose auto-merges any file literally named <code>docker-compose.override.yml</code>; that filename is gitignored and this repo never ships one. Local plain-HTTP dev config (Caddy bypassed, <code>SESSION_COOKIE_INSECURE=true</code>) moved to the tracked, non-auto-merging <code>docker-compose.dev.yml</code> — requires an explicit <code>-f docker-compose.dev.yml</code> to activate. Default <code>docker compose up</code> always serves Secure cookies over Caddy/HTTPS. OWASP A05 (security-review NB-2).</td>
+    </tr>
+    <tr>
+      <td><strong>App healthcheck — surfaces fail-closed boot as unhealthy (security-gate-021 O-1)</strong></td>
+      <td><code>osshp/docker-compose.yml</code> (<code>app.healthcheck</code>)</td>
+      <td><span class="badge green">Active</span></td>
+      <td>A boot-time secret-strength assertion failure (weak/example <code>SESSION_SECRET</code> or <code>OSSHP_ENCRYPTION_KEY</code>) leaves the Next.js process alive, serving HTTP 500 on every request — pre-fix, <code>docker ps</code> reported <code>Up</code> with no signal anything was wrong. Added a Compose healthcheck (<code>wget --spider</code> against the public <code>/api/health</code> route) that fails in the same refused-boot state the app 500s in. Live-verified: weak-secret boot → <code>unhealthy</code>; valid-secret boot → <code>healthy</code>, app reachable at <code>https://localhost</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Non-root app container (issue 073)</strong></td>
+      <td><code>osshp/app/Dockerfile</code> (<code>runner</code> stage)</td>
+      <td><span class="badge green">Active</span></td>
+      <td><code>bun server.js</code> and the compiled CLI binaries (<code>admin-break-glass</code>, <code>export-content</code>, <code>import-content</code>) run as the base image's built-in unprivileged <code>bun</code> user (uid/gid 1000) instead of root — least-privilege containment on the service with the largest untrusted-input surface (uploads, admin auth, public HTTP). <code>COPY --chown=bun:bun</code> for every copied path plus an explicit <code>chown bun:bun /app</code> on the WORKDIR itself (WORKDIR is created by root before any COPY runs, so the directory entry needs its own chown for the CLIs' default relative output path to be writable). Live-verified in an isolated compose project: <code>whoami</code> → <code>bun</code>, <code>/api/health</code> → 200, and all three CLI binaries execute and write files successfully as the non-root user.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Content Export (M4.1B — issue 001)</h2>
+<p class="note">
+  Operator-triggered content export (all posts/pages, every status, referenced media copied in),
+  added 2026-07-02. Admin console: <code>/admin/export</code> &rarr; <code>GET /api/admin/export</code>
+  (streams a <code>.tar.gz</code>). CLI: <code>export-content</code> binary /
+  <code>bun run export:content</code>. Frontmatter + archive-layout contract (also the format
+  the import service, issue 002, round-trips — see below):
+  <code>osshp/docs/decisions/0003-content-export-format.md</code>.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Image / Tag</th>
+      <th>Version</th>
+      <th>Health</th>
+      <th>AGPL-3.0 Compat</th>
+      <th>Platform</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Bun.gzipSync</strong> (archive compression)</td>
+      <td>Bun runtime built-in</td>
+      <td>1.x (^1.3)</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (same as Bun — MIT)</td>
+      <td>Wherever the Bun runtime runs (see App Runtime row above)</td>
+      <td><strong>No new project dependency.</strong> The TAR archive writer itself (<code>lib/export/tar.ts</code>) is hand-rolled (same no-new-dependency convention as the hand-assembled RSS XML in <code>lib/content/feed.ts</code>) — only the gzip compression step uses a Bun built-in. Same runtime-availability guard pattern as <code>Bun.password</code> (M2.2 recovery lane): throws a clear error if invoked outside Bun.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Content Import (M4.1C — issue 002)</h2>
+<p class="note">
+  Operator-triggered content import — single Markdown file, or bulk .tar/.tar.gz archive /
+  CLI-local directory matching the export archive layout — added 2026-07-02. Admin console:
+  <code>/admin/import</code> &rarr; <code>POST /api/admin/import</code> (multipart upload +
+  mode field). CLI: <code>import-content</code> binary / <code>bun run import:content</code>.
+  Re-import behavior (skip existing / overwrite existing / always create new) is selectable by
+  the importer at import time, both surfaces. Decisions, mode semantics, and the
+  archive-extraction hardening (path traversal/zip-slip, oversized/malicious entries,
+  non-regular-file entries, frontmatter/body validation) this feature's untrusted-archive trust
+  boundary required: <code>osshp/docs/decisions/0004-content-import.md</code>.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Image / Tag</th>
+      <th>Version</th>
+      <th>Health</th>
+      <th>AGPL-3.0 Compat</th>
+      <th>Platform</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Bun.gunzipSync</strong> (archive decompression)</td>
+      <td>Bun runtime built-in</td>
+      <td>1.x (^1.3)</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (same as Bun — MIT)</td>
+      <td>Wherever the Bun runtime runs (see App Runtime row above)</td>
+      <td><strong>No new project dependency.</strong> The USTAR archive reader itself (<code>lib/import/tar-reader.ts</code>) is hand-rolled — the exact inverse of the export module's hand-rolled writer, same no-new-dependency convention. Only the gzip auto-detection/decompression step uses a Bun built-in; a decompressed-size cap (<code>MAX_TOTAL_BYTES</code>) is enforced immediately after decompression, before parsing.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Backup / Restore Tooling (M4.1A)</h2>
+<p class="note">
+  Full-site backup/restore, added 2026-07-02; encryption switched from AES-256-CBC +
+  a separate HMAC sidecar to <code>age</code> passphrase-mode AEAD the same day
+  (closes an argv-exposed derived-key finding). See
+  <code>osshp/docs/backup-restore.md</code> for operator documentation, the
+  "Delivery channel" writeup, and the verified restore round-trip.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Image / Tag</th>
+      <th>Version</th>
+      <th>Health</th>
+      <th>AGPL-3.0 Compat</th>
+      <th>Platform</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Alpine</strong> (backup/restore helper container)</td>
+      <td><code>alpine:3@sha256:28bd5fe8b56d…</code></td>
+      <td>3.x</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (MIT)</td>
+      <td>linux/amd64, linux/arm64, linux/arm, linux/386</td>
+      <td>Used only by <code>scripts/backup.sh</code> / <code>scripts/restore.sh</code> to <code>tar</code>/extract the <code>garage-data</code> + <code>garage-meta</code> Docker volumes. Not part of the running stack — invoked via <code>docker run --rm</code> during backup/restore only. <strong>Digest-pinned</strong> per the M2.6 convention (full hash in <code>scripts/backup.sh</code> / <code>scripts/restore.sh</code>).</td>
+    </tr>
+    <tr>
+      <td><strong>age</strong> (archive encryption, AEAD)</td>
+      <td>host binary</td>
+      <td>tested v1.3.1 (any 1.x expected to work)</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (BSD-3-Clause)</td>
+      <td>linux/amd64, linux/arm64, darwin, and anywhere Go compiles</td>
+      <td>Passphrase-mode authenticated encryption (scrypt-derived key + ChaCha20-Poly1305 via age's STREAM chunking) — replaced AES-256-CBC + a separate HMAC sidecar 2026-07-02. Integrity is intrinsic to the ciphertext; no sidecar file. Host binary, not shipped in the image or pinned by digest (no container involved in the encrypt/decrypt path) — version-pinned by documentation + a runtime <code>age --version</code> log/soft-check instead. Install instructions + verification guidance in <code>docs/backup-restore.md</code> "Installing age". No secret (passphrase or derived key) ever appears on any process's argv — verified live via repeated <code>ps</code> sampling during real encrypt/decrypt runs (see "What is verified, and how" in that doc).</td>
+    </tr>
+    <tr>
+      <td><strong>expect</strong> (non-interactive passphrase delivery)</td>
+      <td>host binary</td>
+      <td>system</td>
+      <td><span class="badge green">Active</span></td>
+      <td>YES (permissive, Tcl/Tk-derived)</td>
+      <td>Debian/Ubuntu/Fedora/Alpine/macOS package repos</td>
+      <td>Only required for non-interactive runs (<code>BACKUP_PASSPHRASE</code> set — cron, scripted DR). <code>age -p</code> is deliberately interactive-terminal-only in the upstream CLI (no argv/env/stdin passphrase path exists by design); <code>scripts/lib/age-pty.exp</code> allocates a real pty and feeds <code>BACKUP_PASSPHRASE</code> into it directly from Tcl memory, so the passphrase never lands on any process's command line. Interactive runs (a human at a real terminal) don't need this — <code>age</code> prompts natively. No new project dependency for the app itself; a host tool, same class as <code>tar</code>/<code>git</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Excluded / Risk Flags</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Status</th>
+      <th>Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MinIO server</strong></td>
+      <td><span class="badge red">EXCLUDED</span></td>
+      <td>GitHub repo archived 2026-04-25. No security patches. Replaced by Garage v2.3.0. (FLAG-1 from library audit)</td>
+    </tr>
+    <tr>
+      <td><strong>Auth.js v5 (next-auth)</strong></td>
+      <td><span class="badge yellow">Monitor</span></td>
+      <td>Primary maintainer left Jan 2025; perpetual beta. Do not use as primary auth. Use SimpleWebAuthn + first-party sessions. (FLAG-3 from library audit)</td>
+    </tr>
+    <tr>
+      <td><strong>Lucia</strong></td>
+      <td><span class="badge red">EXCLUDED</span></td>
+      <td>Deprecated March 2025; read-only learning resource. Do not use.</td>
+    </tr>
+    <tr>
+      <td><strong>TipTap Cloud tier packages</strong><br><small>(@tiptap/extension-collaboration, -ai, etc.)</small></td>
+      <td><span class="badge red">EXCLUDED</span></td>
+      <td>Proprietary / commercial — AGPL-incompatible. Only MIT packages (@tiptap/core, @tiptap/react, @tiptap/starter-kit, open-source extensions) are permitted. <strong>CI guard SHIPPED M2.8</strong> (<code>scripts/check-tiptap-cloud.sh</code>, wired into the pre-push gate). (FLAG-2 from library audit)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Planned additions (not yet installed)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Package</th>
+      <th>Added at</th>
+      <th>License</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><s>minio (npm client v8)</s></td><td>M2.9</td><td>Apache-2.0</td><td><strong>INSTALLED M2.9</strong> — S3 client for Garage (and real AWS S3 later, no code change). Wrapped by <code>app/src/lib/media/storage.ts</code> (put/get/ensureBucket); server-only (node builtins), never imported by the Edge middleware.</td></tr>
+    <tr><td><s>postgres (postgres.js)</s></td><td>M1.3</td><td>MIT</td><td><strong>INSTALLED M1.3</strong> — PostgreSQL client (production data layer)</td></tr>
+    <tr><td><s>@electric-sql/pglite</s></td><td>M1.3</td><td>Apache-2.0</td><td><strong>INSTALLED M1.3 (devDependency)</strong> — in-process PostgreSQL/WASM for the test gate; not shipped in the app bundle</td></tr>
+    <tr><td><s>@simplewebauthn/server</s></td><td>M1.6</td><td>MIT</td><td><strong>INSTALLED M1.6</strong> — WebAuthn ceremony (passkeys), server@13.3.2. Server-only.</td></tr>
+    <tr><td><s>@simplewebauthn/browser</s></td><td>M1.8</td><td>MIT</td><td><strong>INSTALLED M1.8</strong> — client passkey helpers (startRegistration/startAuthentication) for the setup wizard + login. Browser-only.</td></tr>
+    <tr><td>otplib</td><td>M2.1</td><td>MIT</td><td>TOTP 2FA</td></tr>
+    <tr><td><s>sharp</s></td><td>M2.7</td><td>Apache-2.0</td><td><strong>INSTALLED M2.7</strong> — image resize + EXIF/GPS strip; <code>app/src/lib/media/processor.ts</code>. EXIF/GPS stripped by default (privacy floor). Callable by M2.9.</td></tr>
+    <tr><td><s>unified / remark / rehype</s></td><td>M1.4</td><td>MIT</td><td><strong>INSTALLED M1.4</strong> — sanitization boundary for the theme engine (theme-rendering-contract §9). M2.3 extends these processors (editor + code highlighting) on the same boundary.</td></tr>
+    <tr><td><s>shiki</s> + <s>@shikijs/langs</s> + <s>@shikijs/themes</s></td><td>M2.8</td><td>MIT</td><td><strong>INSTALLED M2.8</strong> — code syntax highlighting; sync highlighter extends the §9 markdown pipeline (<code>lib/theme/highlight.ts</code>), server-only (not in the client bundle).</td></tr>
+    <tr><td><s>@tiptap/core + @tiptap/react + @tiptap/starter-kit + @tiptap/extension-document</s></td><td>M2.8</td><td>MIT</td><td><strong>INSTALLED M2.8</strong> — Markdown editor (MIT packages only; Cloud/Pro excluded by the CI guard). Source-editor + live-preview at <code>app/src/app/admin/blog/PostEditor.tsx</code>.</td></tr>
+    <tr><td><s>@uppy/core + @uppy/xhr-upload</s></td><td>M2.9</td><td>MIT</td><td><strong>INSTALLED M2.9</strong> — resumable upload engine for the cover-image field (<code>PostEditor.tsx</code>, lazy-loaded on the client). XHRUpload posts multipart to <code>/api/admin/media</code>. (tus-true-resumability would need a tus server endpoint — deferred; XHRUpload is Uppy's standard uploader.)</td></tr>
+    <tr><td><s>glightbox</s></td><td>M2.11 → removed M2.14</td><td>MIT</td><td><strong>REMOVED M2.14.</strong> Installed M2.11 as the public Photos-grid lightbox, but it applied positioning/animation styles via <code>setAttribute("style", …)</code> — governed by the nonce-based CSP (<code>style-src 'self' 'nonce-…'</code>, no <code>'unsafe-inline'</code>) — and threw <code>style-src-attr</code> violations on every open (M2.14 D2). Replaced by a <strong>first-party zero-dep vanilla lightbox</strong> at <code>app/public/vendor/lightbox/</code> (<code>lightbox.js</code> + <code>lightbox.css</code>), still served via <code>/vendor/</code> and loaded by the theme on /photos only, nonce-carried. It carries all visual state via CSS classes + element properties (never an inline style attribute) → CSP-strict by construction. The npm dep and the vendored <code>/vendor/glightbox/</code> dist were deleted; no third-party attribution remains.</td></tr>
+  </tbody>
+</table>
+<p class="note">Radix-vs-React-Aria (was planned for M1.2) is <strong>resolved</strong>: Radix UI chosen — see ADR <code>docs/decisions/0001-ui-primitive-radix.md</code>. <code>@radix-ui/react-slot</code> installed; further Radix primitives added in Phase 1.</p>
+
+<p class="meta" style="margin-top: 2rem;">
+  <strong>Last verified:</strong> 2026-07-02 (issue 012 — Home rework: new <code>featured</code> flag on posts (both types) with an admin editor toggle; new public <code>home.intro</code> setting; Editorial "§ 00 · Selected" showcase (1 lead + ≤3 supporting grayscale/typographic plates, ≤4 with server-side random rotation, newest-first) + intro deck + 6-recent ledger; <code>featured</code> round-trips in export/import frontmatter; fixed the <code>.home</code> padding vs <code>.wrap</code> gutter clobber at 320px. Verified: full test suite (modulo the known intermittent full-suite flake) + <code>bun run build</code> pass; rendered AA both schemes (min 5.13:1), reflow 320/390 clean, featured cards keyboard-focusable with a 3px ring. Author≠QA: independent gate + owner aesthetic sign-off to follow. Prior: 2026-06-30 M2.11 — Photos module: <code>/photos</code> lightbox grid via the new <code>photo-list</code> render target (sanctioned theme-contract enum append); GLightbox (MIT, vanilla) vendored at <code>/vendor/glightbox/</code>, loaded by the Editorial theme on /photos only, nonce-carried (CSP-clean); admin authoring reuses the config-parameterized <code>PostEditor</code> + dedicated guardMutation+session POST/PATCH forcing type='photo-post'; <code>/photos</code> + <code>/vendor/</code> added to the public allowlist; EXIF/GPS strip inherited from the M2.9 upload path; toggle preserves photo-post rows. Verified: full test suite + <code>bun run build</code> pass; runtime render of /photos (grid markup + GLightbox assets present, lightbox opens, CSP-clean). Prior: M2.10 Blog/Pages; M2.9 media pipeline; M2.8 TipTap editor; M2.7 sharp; M2.6 supply-chain; M2.1 auth-hardening; M1.9 Editorial theme.)<br>
+  <strong>Next update:</strong> M2.12 (EXIF privacy gate) / M2.13 (design fidelity) / M2.14 (QA/AA)
+</p>
+
+</body>
+</html>

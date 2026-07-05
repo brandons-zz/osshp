@@ -1,0 +1,88 @@
+/* ============================================================================
+   osshp — SKELETON theme (Layer-2 color/material + minimal layout)
+   ----------------------------------------------------------------------------
+   A minimal, app-bundled reference theme for the M1 walking skeleton. It proves
+   public content renders end-to-end through the theme engine; the polished
+   "Editorial Clarity" reference theme is M1.9 and replaces this. Per the theme
+   contract, a theme owns COLOR/MATERIAL only — it reads Layer-1 structural tokens
+   (/structural.css) for type scale/spacing/radii/focus geometry and the Layer-3
+   brand tokens (--accent-*, injected inline by the app guardrail). The neutral
+   surfaces below match the AA-guardrail reference surfaces (theme/brand.ts) so the
+   accent contrast the app computed matches what renders. Light is the default;
+   [data-scheme="dark"] overrides for the visitor toggle / operator default.
+   ============================================================================ */
+
+:root,
+:root[data-scheme="light"] {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --text: #16181d;       /* ~14:1 on --bg */
+  --text-muted: #54585f; /* ~7:1 on --bg */
+  --border: #e2e2df;
+}
+
+:root[data-scheme="dark"] {
+  --bg: #131417;
+  --surface: #1b1c20;
+  --surface-2: #23252b;
+  --text: #ecedef;       /* ~14:1 on --bg */
+  --text-muted: #a3a7af; /* ~7:1 on --bg */
+  --border: #2c2f35;
+}
+
+html { color-scheme: light dark; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.site {
+  max-width: var(--measure-content);
+  margin: 0 auto;
+  padding: 0 var(--space-m);
+}
+
+.site-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-m);
+  padding: var(--space-m) 0;
+  border-bottom: var(--border-hairline) solid var(--border);
+  flex-wrap: wrap;
+}
+.site-title { font-size: var(--text-2xl); font-weight: var(--weight-bold); margin: 0; letter-spacing: var(--tracking-tight); }
+.site-title a { color: var(--text); text-decoration: none; }
+.site-desc { color: var(--text-muted); font-size: var(--text-sm); margin: var(--space-3xs) 0 0; }
+.site-nav { display: flex; gap: var(--space-s); flex-wrap: wrap; }
+.site-nav a { color: var(--accent-text, var(--text)); text-decoration: none; font-weight: var(--weight-medium); }
+
+.site-main { padding: var(--space-xl) 0; }
+.site-footer { border-top: var(--border-hairline) solid var(--border); padding: var(--space-l) 0; color: var(--text-muted); font-size: var(--text-sm); }
+
+/* --- Post list ------------------------------------------------------------ */
+.post-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-l); }
+.post-card { border-bottom: var(--border-hairline) solid var(--border); padding-bottom: var(--space-l); }
+.post-card:last-child { border-bottom: 0; }
+.post-card h2 { font-size: var(--text-xl); margin: 0 0 var(--space-3xs); }
+.post-card h2 a { color: var(--text); text-decoration: none; }
+.post-card h2 a:hover { color: var(--accent-text); }
+.post-meta { color: var(--text-muted); font-size: var(--text-xs); margin: 0 0 var(--space-2xs); }
+.post-excerpt { color: var(--text); margin: 0; }
+.empty { color: var(--text-muted); }
+
+/* --- Single post / page --------------------------------------------------- */
+.post-article { max-width: var(--measure-prose); margin: 0 auto; }
+.post-article h1 { font-size: var(--text-3xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); margin: 0 0 var(--space-2xs); }
+.post-body { font-size: var(--text-prose); line-height: var(--leading-normal); }
+.post-body :is(h2, h3) { line-height: var(--leading-snug); margin-top: var(--space-l); }
+.post-body a { color: var(--accent-text); }
+.post-body pre { background: var(--surface-2); padding: var(--space-s); border-radius: var(--radius-md); overflow-x: auto; }
+.post-body code { font-family: var(--font-mono); font-size: 0.9em; }
+.post-tags { margin-top: var(--space-l); display: flex; gap: var(--space-2xs); flex-wrap: wrap; }
+.post-tags a { font-size: var(--text-xs); color: var(--text-muted); text-decoration: none; border: var(--border-hairline) solid var(--border); border-radius: var(--radius-full); padding: 0 var(--space-2xs); }
+
+.backlink { display: inline-block; margin-bottom: var(--space-m); color: var(--accent-text); text-decoration: none; }

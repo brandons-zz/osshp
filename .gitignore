@@ -1,0 +1,31 @@
+# Environment — never commit real secrets
+.env
+
+# Timestamped .env / garage.toml backups written by scripts/setup.sh
+# (backup_once). Each contains every secret the live .env holds — now
+# including the Cloudflare Tunnel connector token — so they must never be
+# committed, exactly like .env and config/garage.toml themselves.
+.env.bak-*
+config/garage.toml.bak-*
+
+# Docker Compose auto-merges any file literally named docker-compose.override.yml
+# (or .yaml) on `up`, regardless of what it contains — this repo does not ship
+# one, on purpose (issue 022, OWASP A05 footgun, audit 2026-06-29). Keep this
+# ignore rule as a backstop: if one is ever hand-created locally, it must never
+# be committed. Local plain-HTTP dev config lives in the tracked, non-auto-
+# merging docker-compose.dev.yml instead (see comment at top of that file).
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Garage config contains the RPC secret — never commit it
+# Copy garage.toml.example → garage.toml and fill in values locally
+config/garage.toml
+
+# Backup archives — contain every secret this instance holds (SESSION_SECRET,
+# OSSHP_ENCRYPTION_KEY, POSTGRES_PASSWORD, Garage RPC secret, S3 keys), the
+# full Postgres dump, and Garage volume snapshots. Encrypted at rest by
+# scripts/backup.sh, but still never belongs in version control.
+backups/
+
+# OS
+.DS_Store

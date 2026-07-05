@@ -1,0 +1,83 @@
+# docker-compose.tunnel.yml — CLOUDFLARE TUNNEL deploy overlay.
+#
+# For home-hosted deployments behind a dynamic residential IP, CGNAT, or with
+# no port forwarding: cloudflared dials OUT to Cloudflare, so the home IP
+# never appears in DNS and NO inbound ports are opened. TLS terminates at
+# Cloudflare's edge; cloudflared reaches the Caddy proxy over a dedicated
+# `edge` Docker network and Caddy serves plain HTTP behind it.
+#
+# `docker compose up` on its own (docker-compose.yml alone) is still the
+# DEFAULT direct Caddy-TLS posture and is completely unaffected. This file is
+# an explicit opt-in — Compose never auto-merges it (its name is not
+# `docker-compose.override.yml`; see the note at the top of
+# docker-compose.yml and issue 022).
+#
+# Canonical bring-up (setup.sh --mode tunnel does this for you):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+#
+# Every subsequent `docker compose` command for this instance (ps, logs,
+# down, --force-recreate app, upgrades) needs the same two -f flags.
+# Combine with the GHCR overlay (pull the published image instead of
+# building) by adding -f docker-compose.ghcr.yml as well.
+#
+# Requires Docker Compose >= 2.24.4 for the `!reset` merge tag below;
+# setup.sh --mode tunnel asserts this and fails loud on an older Compose
+# (issue 035).
+#
+# PREREQUISITES (Cloudflare account side — MANUAL, not automated by osshp;
+# see docs/setup-runbook.md "Cloudflare Tunnel mode"):
+#   1. Create a tunnel in the Cloudflare Zero Trust dashboard.
+#   2. Add a public hostname (your domain) with Service Type = HTTP, URL =
+#      proxy:80 (i.e. http://proxy:80). `proxy` is the compose SERVICE name,
+#      resolved over the `edge` Docker network (see below) — NOT `osshp` (the
+#      compose project/stack name), NOT `osshp-proxy-1` (the container name),
+#      and NOT localhost. DNS is created for you when you save it.
+#   3. Copy the tunnel connector TOKEN; setup.sh --mode tunnel stores it in
+#      .env as CLOUDFLARE_TUNNEL_TOKEN (a secret — never commit .env).
+#
+# NETWORK TOPOLOGY (issue 035 hardening): cloudflared sits on a dedicated
+# `edge` network with `proxy`, instead of the shared `internal` network that
+# `db`/`storage`/`app` are on. The connector token is dashboard-managed — a
+# compromised token lets an attacker remap the tunnel's ingress to reach
+# whatever cloudflared can reach on the Docker network. Scoping cloudflared to
+# `edge` means a stolen token's reach is bounded to the proxy, not the
+# database, object storage, or the app service directly. `proxy` joins both
+# networks (`internal` to reverse_proxy to `app`, `edge` to be reachable from
+# `cloudflared`); nothing else joins `edge`.
+services:
+  # Tunnel mode drops the published 80/443 host ports entirely: nothing needs
+  # to reach the proxy from outside the host — cloudflared connects to it over
+  # the dedicated `edge` Docker network (see NETWORK TOPOLOGY above).
+  # `!reset []` clears the base file's port list (the Compose merge-reset
+  # tag; Docker Compose v2.24.4+). `edge` is added here on top of the
+  # `internal` network proxy already has from docker-compose.yml — Compose
+  # merges a service's `networks:` list across files rather than replacing it.
+  proxy:
+    ports: !reset []
+    networks:
+      - edge
+
+  # cloudflared — Cloudflare Tunnel connector.
+  # Token-based / dashboard-managed: the connector pulls its ingress rules
+  # (public hostname → http://proxy:80) from Cloudflare using the token, so no
+  # local config file is needed. It sits ONLY on the `edge` network — see
+  # NETWORK TOPOLOGY above — so it can reach `proxy` and nothing else.
+  # Digest pinned for supply-chain reproducibility (A05/A06/A08 — M2.6).
+  # To bump: docker pull cloudflare/cloudflared:<newtag> && docker inspect
+  #   cloudflare/cloudflared:<newtag> --format '{{index .RepoDigests 0}}'
+  #   — update tag and digest below.
+  cloudflared:
+    image: cloudflare/cloudflared:2025.6.1@sha256:175aee7e8b548f983f7e3b79ace217676d2a79255a73c074dacb491e59603679
+    restart: unless-stopped
+    # --no-autoupdate: the image is digest-pinned; in-container self-update
+    # would defeat that and is not wanted for a reproducible deploy.
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN}"]
+    depends_on:
+      - proxy
+    networks:
+      - edge
+
+networks:
+  edge:
+    driver: bridge

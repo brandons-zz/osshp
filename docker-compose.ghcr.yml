@@ -1,0 +1,33 @@
+# docker-compose.ghcr.yml — PULL-BASED deploy overlay.
+#
+# Runs the published osshp image from GHCR instead of building from source.
+# This is the owner-dogfooding / self-hoster consumption path (issue 032):
+# `docker compose up` on its own always BUILDS the app image from ./app;
+# this overlay swaps that for a PULL of the pre-built, published image.
+#
+# Usage:
+#
+#   docker login ghcr.io                      # once, if the image is private
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml pull app
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up -d
+#
+# Override the published tag/digest via OSSHP_IMAGE in .env or the shell
+# environment; it defaults to the current stable release tag below.
+#
+# The `!reset null` tag clears the base file's `build:` key for this service
+# — required so Compose treats `app` as pull-only under this overlay instead
+# of merging build+image and building anyway. (Compose Specification's merge
+# reset tag; supported by Docker Compose v2.24.4+ / v5.x.)
+#
+# The build-from-source path (`docker-compose.yml` alone, no -f overlay) is
+# unchanged and still works — see docs/setup-runbook.md.
+
+services:
+  app:
+    build: !reset null
+    # Pinned by digest (matches the digest-pinned base images below) for
+    # tamper-evidence + reproducibility. The digest is the multi-arch
+    # manifest-list digest (linux/amd64 + linux/arm64). Override OSSHP_IMAGE to
+    # run a different build.
+    image: ${OSSHP_IMAGE:-ghcr.io/brandons-zz/osshp:0.2.0@sha256:15295b3b97d736fb4d985fcc3c92936d9607953301a62ed8fe8605c168d950f2}
+    pull_policy: always

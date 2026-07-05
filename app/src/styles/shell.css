@@ -1,0 +1,694 @@
+/* ============================================================================
+   osshp — APP-SHELL styles (setup wizard, login, admin shell)
+   ----------------------------------------------------------------------------
+   The app shell is app-owned UI — it is NOT rendered through a theme (the public
+   site is; see the theme engine). It therefore carries its own neutral Layer-2
+   color tokens + Layer-3 accent so the owned-component kernel (Button/Link/Prose,
+   kernel.css) renders with real colors here. Reads Layer-1 structural tokens
+   (public/structural.css) for type scale, spacing, radii, focus geometry. Neutral
+   surfaces mirror the AA-guardrail reference surfaces (theme/brand.ts) so the two
+   worlds look consistent. Contrast is re-gated on real components at M1.10.
+   ============================================================================ */
+
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --text: #16181d;        /* ~14:1 on --bg */
+  --text-muted: #54585f;  /* ~7:1 on --bg */
+  --border: #d9d9d6;
+  --border-ui: #8e8e8e;      /* interactive/functional boundary — 3.28:1 on --surface (1.4.11) */
+  --border-ui-2: #858585;    /* boundary over --surface-2 — 3.30:1 (1.4.11); --border-ui is only 2.95:1 on --surface-2 */
+  --accent-solid: #1d4ed8;   /* white on this ≥4.5:1 */
+  --on-accent: #ffffff;
+  --accent-text: #1d4ed8;    /* ≥4.5:1 on --bg */
+  --focus: var(--accent-text);
+  --danger-text: #b42318;    /* ≥4.5:1 on --bg / --surface */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417;
+    --surface: #1b1c20;
+    --surface-2: #23252b;
+    --text: #ecedef;        /* ~14:1 on --bg */
+    --text-muted: #a3a7af;  /* ~7:1 on --bg */
+    --border: #34373d;
+    --border-ui: #6c6c6c;      /* interactive/functional boundary — 3.24:1 on --surface (1.4.11) */
+    --border-ui-2: #808080;    /* boundary over --surface-2 dark — ≥3:1 (1.4.11) */
+    --accent-solid: #3b6ae0;
+    --on-accent: #ffffff;
+    --accent-text: #9bb6ff;  /* ≥4.5:1 on dark --bg */
+    --danger-text: #ff9b8f;
+  }
+}
+
+html { color-scheme: light dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--accent-text); }
+
+/* --- Shell scaffold -------------------------------------------------------- */
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+}
+@media (max-width: 48rem) {
+  .shell { grid-template-columns: 1fr; }
+}
+
+.shell-nav {
+  background: var(--surface);
+  border-right: var(--border-hairline) solid var(--border);
+  padding: var(--space-m);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  /* Grid items default to min-width:auto (= content min-content); a wide child
+     (e.g. the admin table) would otherwise force the 1fr track wider than the
+     viewport at 320px. min-width:0 lets the track shrink to the viewport so the
+     content reflows instead (WCAG 1.4.10). */
+  min-width: 0;
+}
+@media (max-width: 48rem) {
+  .shell-nav { border-right: 0; border-bottom: var(--border-hairline) solid var(--border); }
+}
+
+/* Brand + mobile toggle row (issue 041). Always visible; the toggle itself is
+   desktop-hidden (below) so this row is just the brand label at >=48rem. */
+.shell-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2xs);
+}
+.shell-brand {
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+/* Desktop: no toggle, the link list below is always rendered (nav unchanged). */
+.shell-nav-toggle { display: none; }
+
+/* The collapsible link list. Desktop: identical layout to the old flat
+   `.shell-nav > a` stack (flex column, same gap); `flex:1` + the footer's
+   margin-top:auto reproduce the previous "Sign out pinned to the bottom of
+   the sidebar" behavior now that the links live one level deeper. */
+.shell-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  flex: 1;
+  min-height: 0;
+}
+.shell-nav-links a {
+  display: block;
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--text);
+}
+.shell-nav-links a:hover { background: var(--surface-2); }
+.shell-nav-links a[aria-current="page"] { background: var(--surface-2); font-weight: var(--weight-semibold); }
+
+@media (max-width: 48rem) {
+  /* A compact square hamburger button — >=44px hit target, a non-text
+     boundary at >=3:1 (--border-ui on --surface is 3.28:1, 1.4.11) and the
+     global :focus-visible ring (structural.css) for 2.4.7. */
+  .shell-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    flex: none;
+    border: var(--border-hairline) solid var(--border-ui);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .shell-nav-toggle-bars,
+  .shell-nav-toggle-bars::before,
+  .shell-nav-toggle-bars::after {
+    content: "";
+    display: block;
+    width: 1.1rem;
+    height: 2px;
+    background: currentColor;
+    border-radius: var(--radius-full);
+  }
+  .shell-nav-toggle-bars { position: relative; }
+  .shell-nav-toggle-bars::before { position: absolute; left: 0; top: -5px; }
+  .shell-nav-toggle-bars::after { position: absolute; left: 0; top: 5px; }
+
+  /* Collapsed by default — this is the fix for issue 041: the link stack no
+     longer consumes the viewport before any page content is reachable. */
+  .shell-nav-links { display: none; flex: none; }
+  .shell-nav[data-nav-open="true"] .shell-nav-links {
+    display: flex;
+    padding-top: var(--space-xs);
+  }
+}
+
+.shell-main {
+  /* box-sizing keeps the var(--space-l) padding inside the 100% width so a single
+     collapsed grid column at 320px does not overflow (WCAG 1.4.10). The global
+     reset in the public theme.css does not reach the app shell, so set it here. */
+  box-sizing: border-box;
+  padding: var(--space-l);
+  max-width: var(--measure-content);
+  width: 100%;
+  min-width: 0; /* see .shell-nav — lets the 1fr track shrink to the viewport */
+}
+
+/* --- Generic chrome blocks ------------------------------------------------- */
+.shell-card {
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-m);
+}
+
+.field { display: flex; flex-direction: column; gap: var(--space-3xs); margin-bottom: var(--space-s); }
+.field label { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+.field input,
+.field textarea,
+.field select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xs) var(--space-xs);
+  width: 100%;
+  box-sizing: border-box;
+}
+.field textarea { min-height: 12rem; resize: vertical; font-family: var(--font-mono); }
+.field-hint { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* Checkbox row (issue 037 §9). The broad `.field input { width:100% }` rule above
+   stretches a bare checkbox into a full-width bordered box detached from its
+   label. `.field-check` lays the box inline with its label and resets the
+   checkbox back to its intrinsic size. Both editors standardize on this one
+   structure: <label class="field-check"><input type=checkbox><span>…</span></label>.
+   The native checkbox keeps its role/name/value (4.1.2); accent-color themes the
+   check; the label text is body weight (a checkbox label is not a field heading). */
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  font-weight: var(--weight-regular);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.field-check input[type="checkbox"] {
+  inline-size: 1rem;
+  block-size: 1rem;
+  width: auto;          /* override the full-width `.field input` rule */
+  flex: none;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent-solid);
+}
+
+.row { display: flex; gap: var(--space-2xs); flex-wrap: wrap; align-items: center; }
+.row-between { justify-content: space-between; }
+.muted { color: var(--text-muted); }
+.error { color: var(--danger-text); }
+.stack > * + * { margin-top: var(--space-s); }
+.plain-list { list-style: none; padding: 0; }
+.shell-nav-footer { margin-top: auto; padding-top: var(--space-m); }
+
+/* --- Accent swatch (setup wizard issue 005; settings issue 042) ----------- */
+.accent-row { display: flex; gap: var(--space-2xs); align-items: center; }
+.accent-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  border: var(--border-hairline) solid var(--border);
+  flex: none;
+}
+.accent-value { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+/* The native color-input picker (issue 042): the generic `.field input` rule
+   above adds padding + a bordered background to every input, which squeezes
+   the browser's own swatch chrome down to nothing and — on desktop Chromium —
+   left it painting solid black instead of the chosen color. Reset it to a
+   small square button whose own swatch fills the box; AccentSwatch (the
+   dedicated element right next to it) is the reliable, CSP-safe color preview,
+   so this control only needs to look and behave like a working color picker. */
+.accent-row input[type="color"] {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: var(--border-hairline) solid var(--border-ui);
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+.accent-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.accent-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: calc(var(--radius-md) - 1px); }
+.accent-row input[type="color"]::-moz-color-swatch { border: none; border-radius: calc(var(--radius-md) - 1px); }
+
+/* --- Wizard --------------------------------------------------------------- */
+.wizard { max-width: 40rem; margin: var(--space-2xl) auto; padding: 0 var(--space-s); }
+.wizard-steps { display: flex; gap: var(--space-2xs); list-style: none; padding: 0; margin: 0 0 var(--space-l); font-size: var(--text-sm); color: var(--text-muted); flex-wrap: wrap; }
+.wizard-steps li[aria-current="step"] { color: var(--text); font-weight: var(--weight-semibold); }
+
+/* --- Module/post lists ---------------------------------------------------- */
+.choice { display: flex; gap: var(--space-2xs); align-items: flex-start; padding: var(--space-xs); border: var(--border-hairline) solid var(--border); border-radius: var(--radius-md); }
+.choice + .choice { margin-top: var(--space-2xs); }
+
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { text-align: left; padding: var(--space-2xs) var(--space-xs); border-bottom: var(--border-hairline) solid var(--border); }
+/* Admin tables reflow at narrow widths (WCAG 1.4.10): fixed layout keeps the
+   table inside the content column and the cell content wraps instead of forcing
+   page-level horizontal scroll. Scoped to the single-column breakpoint so the
+   desktop table layout is unchanged. */
+@media (max-width: 48rem) {
+  .admin-table { table-layout: fixed; }
+  .admin-table th,
+  .admin-table td { overflow-wrap: break-word; word-break: break-word; }
+  .admin-table code { overflow-wrap: anywhere; word-break: break-word; }
+}
+.status-pill { font-size: var(--text-xs); font-weight: var(--weight-semibold); padding: 0 var(--space-2xs); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text-muted); }
+.status-pill[data-status="published"] { color: var(--on-accent); background: var(--accent-solid); }
+
+/* --- Analytics dashboard (issue 029) ---------------------------------------
+   Window-selector tabs mirror the existing aria-current="page" pattern (see
+   .shell-nav-links a[aria-current="page"] above) — plain <a> tags, so keyboard
+   operability (2.1.1) and the global :focus-visible ring (2.4.7,
+   structural.css) come for free with no custom widget. */
+.analytics-window-nav { display: flex; gap: var(--space-2xs); flex-wrap: wrap; }
+.analytics-window-nav a {
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-md);
+  border: var(--border-hairline) solid var(--border-ui);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.analytics-window-nav a[aria-current="page"] { color: var(--on-accent); background: var(--accent-solid); border-color: var(--accent-solid); font-weight: var(--weight-semibold); }
+
+.analytics-stats { display: flex; gap: var(--space-m); flex-wrap: wrap; }
+.analytics-stat {
+  padding: var(--space-s);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  min-width: 10rem;
+}
+.analytics-stat-value { font-size: var(--text-xl); font-weight: var(--weight-semibold); margin: 0; }
+.analytics-stat-label { color: var(--text-muted); font-size: var(--text-sm); margin: var(--space-3xs) 0 0; }
+
+/* Decorative bar chart (role="img" in the component; the adjacent <table> is
+   the accessible, exact-figures source — WCAG 1.4.1 not color/shape-only).
+   Bar height is set via the CSSOM in a client effect, never a JSX `style` prop
+   (see AnalyticsBarChart.tsx) — the app's CSP has no unsafe-inline on
+   style-src, so a literal style="height:…" attribute in the SSR HTML would be
+   silently dropped. --accent-solid on --surface-2 is ≥3:1 in both color
+   schemes (WCAG 1.4.11 non-text contrast). */
+.analytics-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3xs);
+  height: 8rem;
+  padding: var(--space-2xs);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.analytics-bar { flex: 1 1 0; min-height: 2px; background: var(--accent-solid); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+
+/* --- Markdown editor (admin authoring) ------------------------------------ */
+/* Source + live-preview side by side; reflows to one column on narrow screens
+   (WCAG 1.4.10 at 320px — the panes stack, nothing is clipped). */
+.md-editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-s);
+  align-items: start;
+}
+@media (max-width: 48rem) {
+  .md-editor-grid { grid-template-columns: 1fr; }
+}
+/* gap sets the breathing room between the label/"Insert image" button row and the
+   Markdown box below it. --space-3xs let the button touch the box (issue 052);
+   --space-xs gives a clear, generous gap (owner taste), consistent in both panes
+   and unaffected by the 320px single-column reflow (it is a vertical flex gap). */
+.md-pane { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+.md-pane-label { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+/* Label row: label + help "?" button inline */
+.md-pane-label-row { display: flex; gap: var(--space-2xs); align-items: center; }
+/* Primary photo upload: extra visual weight vs. optional cover */
+.photo-primary-field { padding: var(--space-m); background: var(--surface-2); border-radius: var(--radius-md); }
+.md-source-wrap,
+.md-preview {
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-sizing: border-box;
+  min-height: 18rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+.md-source-wrap:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.md-source.ProseMirror {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  padding: var(--space-xs);
+  min-height: 18rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  outline: none;
+}
+.md-source.ProseMirror pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.md-source.ProseMirror code { font-family: inherit; }
+.md-preview { padding: var(--space-xs); }
+.md-preview > :first-child { margin-top: 0; }
+.md-preview img { max-width: 100%; height: auto; }
+.md-preview pre { max-width: 100%; overflow-x: auto; }
+
+/* --- Media library + picker (issue 037) ----------------------------------- */
+/* Image-first surface: a responsive card grid where the imagery IS the visual
+   interest (owner taste — whitespace + thumbnails over chrome/rules). Shared by
+   the /admin/media library and the in-editor MediaPicker's "Choose existing"
+   tab. AA: card/selection boundaries use --border-ui / --accent-text (≥3:1,
+   1.4.11); selection is never color-only (a ✓ badge + aria-selected pair it). */
+.media-count { color: var(--text-muted); font-size: var(--text-sm); }
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-m);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+@media (max-width: 24rem) {
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+.media-card { display: flex; flex-direction: column; gap: var(--space-3xs); min-width: 0; }
+
+/* The whole tile is one focusable control (library: opens detail; picker:
+   selects). A flex COLUMN so thumb/alt/meta stack and stay inside the card —
+   the children are <span>s, which are inline by default; without an explicit
+   block/flex layout the thumb's width/aspect-ratio don't apply and the meta
+   row overflows below the card and overlaps the next one at 320px
+   (WCAG 1.4.10; QA finding 3). */
+.media-card__button {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-md);
+}
+.media-card__thumb {
+  display: block;
+  position: relative;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  /* --border-ui-2 (not --border-ui) — the frame sits over --surface-2, where
+     --border-ui is only 2.95:1 (< 3:1). --border-ui-2 is ≥3:1 (QA finding 6). */
+  box-shadow: inset 0 0 0 var(--border-hairline) var(--border-ui-2);
+}
+.media-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Single-select state (picker). Accent ring ≥3:1 + a check badge (not color
+   alone). aria-selected carries the state to assistive tech. */
+.media-card__button[aria-selected="true"] .media-card__thumb {
+  box-shadow: inset 0 0 0 var(--border-thick) var(--accent-text);
+}
+.media-card__check {
+  position: absolute;
+  top: var(--space-3xs);
+  right: var(--space-3xs);
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+.media-card__button[aria-selected="true"] .media-card__check { display: inline-flex; }
+.media-card__alt {
+  display: block;
+  max-width: 100%;
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.media-card__alt--empty { color: var(--text-muted); }
+.media-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 100%;
+  min-width: 0;
+}
+.media-card__dims { white-space: nowrap; }
+
+/* Detail panel + picker: wider than the confirm dialog, internal scroll so a
+   tall grid scrolls inside the dialog (1.4.10 — no page-level h-scroll). */
+.media-dialog { max-width: min(94vw, 44rem); max-height: 88vh; overflow-y: auto; }
+.media-dialog__preview {
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  display: block;
+  margin-bottom: var(--space-s);
+}
+.media-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  margin-bottom: var(--space-s);
+}
+.media-meta code { overflow-wrap: anywhere; word-break: break-word; }
+.media-usage-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3xs); }
+.media-section { margin-bottom: var(--space-m); }
+.media-section h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-3xs);
+}
+.media-saved { color: var(--accent-text); font-size: var(--text-xs); }
+
+/* Picker mode tabs (Upload new | Choose existing) */
+.media-tabs { display: flex; gap: var(--space-2xs); margin-bottom: var(--space-s); }
+.media-tab {
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: var(--space-3xs) var(--space-xs);
+  border: var(--border-hairline) solid var(--border-ui);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.media-tab[aria-selected="true"] {
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  border-color: var(--accent-solid);
+}
+.media-grid-scroll { max-height: 46vh; overflow-y: auto; margin-bottom: var(--space-s); }
+.media-empty { text-align: center; padding: var(--space-2xl) var(--space-m); }
+.media-empty h2 { margin: 0 0 var(--space-2xs); }
+
+/* --- Gallery photo posts (issue 047) --------------------------------------- */
+/* The photo-post mode toggle (Single vs Gallery) + the gallery manager. Uses
+   the shell's AA-verified token pairs: functional boundaries at --border-ui
+   (>=3:1, 1.4.11), text at --text/--text-muted, danger at --danger-text. */
+
+/* Segmented Single / Gallery control */
+.field-label-text { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+.seg { display: inline-flex; border: var(--border-hairline) solid var(--border-ui); border-radius: var(--radius-md); overflow: hidden; width: max-content; }
+.seg button {
+  font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .04em;
+  background: var(--surface); color: var(--text-muted); border: 0; padding: var(--space-2xs) var(--space-m);
+  cursor: pointer;
+}
+.seg button + button { border-left: var(--border-hairline) solid var(--border-ui); }
+.seg button[aria-pressed="true"] { background: var(--accent-solid); color: var(--on-accent); }
+
+/* Manager header: live count + "choose from library" */
+.gallery-manager .man-head { display: flex; align-items: center; gap: var(--space-s); flex-wrap: wrap; margin-bottom: var(--space-xs); }
+.gallery-manager .man-head .count { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+.gallery-warn { color: var(--text-muted); }
+
+/* Thumbnail grid */
+.man-grid { list-style: none; margin: 0 0 var(--space-s); padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-s); }
+@media (max-width: 700px) { .man-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .man-grid { grid-template-columns: 1fr; } }
+.thumb { border: var(--border-hairline) solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); }
+.thumb .im { position: relative; aspect-ratio: 4 / 3; background: var(--surface-2); }
+.thumb .im img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1); }
+.thumb .plno { position: absolute; top: var(--space-3xs); left: var(--space-3xs); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); background: var(--surface); border: var(--border-hairline) solid var(--border); padding: 0 var(--space-3xs); border-radius: var(--radius-sm); }
+.thumb .up-state { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--on-accent); background: rgba(0,0,0,.55); }
+.thumb .body { padding: var(--space-xs); display: flex; flex-direction: column; gap: var(--space-3xs); }
+/* The broad `.field input { width:100% }` rule applies to caption/alt; reset the
+   radio so it doesn't stretch full-width. */
+.thumb input[type="radio"] { width: auto; margin: 0; }
+.thumb input.altwarn { border-color: var(--danger-text); }
+.thumb .warn { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--danger-text); margin: 0; }
+.thumb .ctl { display: flex; align-items: center; gap: var(--space-3xs); flex-wrap: wrap; margin-top: var(--space-3xs); }
+.thumb .ctl button {
+  font-family: var(--font-mono); font-size: var(--text-xs); background: var(--surface);
+  border: var(--border-hairline) solid var(--border-ui); color: var(--text); border-radius: var(--radius-sm);
+  padding: var(--space-3xs) var(--space-2xs); cursor: pointer;
+}
+.thumb .ctl button:disabled { opacity: .5; cursor: not-allowed; }
+.thumb .cover { display: inline-flex; align-items: center; gap: var(--space-3xs); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+.thumb.is-cover { border-color: var(--accent-solid); box-shadow: 0 0 0 1px var(--accent-solid); }
+
+/* Bulk-add dropzone wrapper */
+.gallery-dropzone .hint { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: var(--space-2xs) 0 0; }
+
+/* issue 053 — module public-nav suggestion chips in the Settings nav editor.
+   One-click "Add a section" affordances (Blog, Photos) for enabled modules.
+   AA: native <button>s are keyboard-operable (2.1.1) and pick up the global
+   :focus-visible ring (2.4.7, structural.css); the chip boundary uses
+   --border-ui-2 (≥3:1 over --surface-2, 1.4.11) and --text on --surface-2 for
+   the label (≥4.5:1, 1.4.3). */
+.nav-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); margin-top: var(--space-xs); }
+.nav-suggestions-label { font-size: var(--text-xs); color: var(--text-muted); }
+.nav-suggestions-chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+.nav-suggestion-chip {
+  font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text);
+  background: var(--surface-2); border: var(--border-hairline) solid var(--border-ui-2);
+  border-radius: var(--radius-full); padding: var(--space-3xs) var(--space-xs); cursor: pointer;
+}
+.nav-suggestion-chip:disabled { opacity: .5; cursor: not-allowed; }
+
+/* --- Media library multiselect + bulk actions (issue 057) ------------------ */
+/* Screen-reader-only utility for live-region announcements (kept off-screen but
+   in the a11y tree; not display:none, which would silence it). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Toolbar row above the grid: count on the left, bulk actions on the right;
+   wraps under the count at narrow widths (1.4.10 reflow at 320px). */
+.media-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+}
+.media-bulkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--border-ui-2); /* ≥3:1 boundary (1.4.11) */
+  border-radius: var(--radius-md);
+}
+.media-bulkbar__count { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+
+/* Corner selection affordance on each card in select mode. A pointer target
+   (keyboard selects via Space on the card); its checked state mirrors the
+   authoritative aria-selected on the card. Boundary ≥3:1 over the thumb. */
+.media-grid--select .media-card { position: relative; }
+.media-card__select {
+  position: absolute;
+  top: var(--space-3xs);
+  left: var(--space-3xs);
+  z-index: 1;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: var(--border-thick) solid var(--border-ui-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: transparent;
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+.media-card__select[data-checked="true"] {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+}
+/* In select mode the card's own selected ring (aria-selected) is the strong,
+   non-color-only cue; suppress the picker's top-right ✓ badge so selection reads
+   from the corner checkbox + ring, not two competing marks. */
+.media-grid--select .media-card__button[aria-selected="true"] .media-card__check {
+  display: none;
+}
+.media-grid--select .media-card__button[aria-selected="true"] .media-card__thumb {
+  box-shadow: inset 0 0 0 var(--border-thick) var(--accent-text);
+}
+
+/* Photo-post delete "also delete the N photos?" opt-in (issue 056). */
+.media-cleanup-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+  margin: var(--space-2xs) 0;
+  cursor: pointer;
+}
+.media-cleanup-option input[type="checkbox"] {
+  inline-size: 1rem;
+  block-size: 1rem;
+  width: auto;
+  flex: none;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent-solid);
+}
+.media-cleanup-note { margin: var(--space-2xs) 0; }
+
+/* Batch alt step-through editor (issue 057). */
+.batch-alt__progress { font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2xs); }
+.batch-alt__actions { flex-wrap: wrap; }

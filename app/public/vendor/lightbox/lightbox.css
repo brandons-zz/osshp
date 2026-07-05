@@ -1,0 +1,187 @@
+/* osshp first-party photo lightbox styles (paired with lightbox.js).
+ * Loaded via <link rel="stylesheet"> from 'self' on the /photos route only.
+ * The overlay is its own dark visual context regardless of the page color
+ * scheme, so controls are white-on-dark (high contrast, scheme-independent). */
+
+.oshlb {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: var(--space-l, 2rem);
+}
+.oshlb.is-open {
+  display: flex;
+}
+
+/* Guard: author display rules above would otherwise defeat the `hidden`
+   attribute on nav buttons / empty captions (UA [hidden] is lowest priority). */
+.oshlb [hidden] {
+  display: none !important;
+}
+
+.oshlb-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.oshlb-figure {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs, 0.5rem);
+  max-width: min(92vw, 1200px);
+  max-height: 90vh;
+}
+
+.oshlb-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  /* A zoomed image scales beyond its fit box — clip it to the stage so it never
+     spills over the caption/controls. */
+  overflow: hidden;
+  /* issue 065: hand the browser's pinch/scroll on the image to our handlers so
+     the lightbox owns zoom/pan. Scoped to the stage ONLY — page pinch-zoom
+     outside the lightbox is untouched. */
+  touch-action: none;
+}
+
+.oshlb-img {
+  display: block;
+  max-width: 100%;
+  max-height: 78vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-md, 10px);
+  /* Zoom (issue 065) scales about the image center; the JS pan math assumes it. */
+  transform-origin: center center;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* When zoomed, the image is draggable to pan. */
+.oshlb-stage.is-zoomed .oshlb-img {
+  cursor: grab;
+}
+.oshlb-stage.is-zoomed .oshlb-img:active {
+  cursor: grabbing;
+}
+
+.oshlb-caption {
+  text-align: center;
+  color: #ffffff;
+}
+.oshlb-title {
+  margin: 0;
+  font-size: var(--text-base, 1rem);
+  font-weight: 600;
+}
+.oshlb-desc {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-sm, 0.9rem);
+  color: #d6d6d6;
+}
+
+.oshlb-close,
+.oshlb-prev,
+.oshlb-next {
+  position: absolute;
+  z-index: 2;
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  border-radius: var(--radius-full, 9999px);
+  width: 2.75rem;
+  height: 2.75rem;
+  line-height: 1;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.oshlb-close:hover,
+.oshlb-prev:hover,
+.oshlb-next:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+/* Scheme-independent high-contrast focus ring on the dark overlay (WCAG 2.4.7 /
+   1.4.11). Overrides the page-theme --focus color, which can be a low-contrast
+   pairing against the near-black backdrop. */
+.oshlb button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.oshlb-close {
+  top: var(--space-s, 1rem);
+  right: var(--space-s, 1rem);
+}
+.oshlb-prev {
+  left: var(--space-2xs, 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.oshlb-next {
+  right: var(--space-2xs, 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Zoom controls (issue 065) — a keyboard-reachable +/− pair under the image. */
+.oshlb-zoombar {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2xs, 0.5rem);
+}
+.oshlb-zoomout,
+.oshlb-zoomin {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  border-radius: var(--radius-full, 9999px);
+  width: 2.75rem;
+  height: 2.75rem;
+  line-height: 1;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.oshlb-zoomout:hover:not(:disabled),
+.oshlb-zoomin:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.8);
+}
+.oshlb-zoomout:disabled,
+.oshlb-zoomin:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.oshlb-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+html.oshlb-open {
+  overflow: hidden;
+}

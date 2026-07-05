@@ -1,0 +1,22 @@
+# osshp Caddyfile
+#
+# Caddy terminates TLS in-stack (the DEFAULT, "direct" deployment mode).
+# For a real domain, Caddy automatically obtains a Let's Encrypt certificate
+# (ports 80 + 443 must be reachable). For local dev
+# (OSSHP_DOMAIN=localhost), Caddy uses its internal CA.
+#
+# The site address is {$OSSHP_CADDY_SITE_ADDRESS}, injected by
+# docker-compose.yml. It DEFAULTS to {$OSSHP_DOMAIN} (a bare domain), so
+# direct mode is unchanged: Caddy sees the bare domain and does auto-HTTPS.
+#
+# In Cloudflare Tunnel mode (docker-compose.tunnel.yml overlay), setup.sh
+# sets OSSHP_CADDY_SITE_ADDRESS=http://<domain> in .env. The leading
+# `http://` tells Caddy to serve plain HTTP on :80 and NOT attempt a
+# certificate — TLS is terminated at Cloudflare's edge and cloudflared
+# reaches this proxy over the internal Docker network. OSSHP_DOMAIN /
+# OSSHP_RP_ID stay bare and OSSHP_ORIGIN stays https://<domain>, so
+# WebAuthn + Secure cookies are unaffected.
+
+{$OSSHP_CADDY_SITE_ADDRESS} {
+    reverse_proxy app:3000
+}

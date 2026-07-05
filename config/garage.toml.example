@@ -1,0 +1,37 @@
+# ============================================================
+# Garage v2.3.0 — Configuration Example
+# ============================================================
+# Copy this file to config/garage.toml and fill in the
+# rpc_secret value before starting the stack.
+#
+# RPC secret: must be a 64-character hex string (32 bytes).
+# Generate with: openssl rand -hex 32
+# ============================================================
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+
+# Single-node deployment. Increase for multi-node setups.
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+# Public RPC address used by other nodes (fine for single-node).
+rpc_public_addr = "storage:3901"
+
+# SECURITY: Generate with: openssl rand -hex 32
+# Replace CHANGE_ME_GENERATE_WITH_openssl_rand_hex_32 with your value.
+rpc_secret = "CHANGE_ME_GENERATE_WITH_openssl_rand_hex_32"
+
+[s3_api]
+s3_region = "us-east-1"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.local"
+
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.local"
+index = "index.html"
+error_document = "404.html"
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
