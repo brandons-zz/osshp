@@ -12,7 +12,7 @@ import {
 export const POST = guardMutation(async (request: Request): Promise<Response> => {
   const db = getDb();
   await revokeSession(db, readSessionCookie(request));
-  recordAuthEvent("session.revoke", "success", { request });
+  recordAuthEvent("session.revoke", "success", { db, request });
   return Response.json(
     { ok: true },
     { headers: { "set-cookie": clearedSessionCookieHeader() } },

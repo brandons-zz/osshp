@@ -191,3 +191,61 @@ export function readLoginChallengeCookie(request: Request): string | undefined {
   }
   return undefined;
 }
+
+// ── Step-up ceremony scoping (A1) ────────────────────────────────────────────
+//
+// The step-up passkey-assertion ceremony reuses the per-attempt
+// auth_login_challenges store (issue-075 anti-clobbering property carries over —
+// rows are ceremony-scoped and lane-agnostic, and the assertion still verifies
+// against the pinned origin/rpID regardless of which lane stored the challenge),
+// but round-trips its ceremony id via its OWN cookie: a different name and a
+// Path scoped to /api/auth/stepup, so a step-up ceremony id and a login ceremony
+// id can never cross by cookie scoping.
+
+/** Cookie carrying the caller's own step-up-ceremony id between options → verify. */
+export const STEPUP_CHALLENGE_COOKIE_NAME = "osshp_stepup_ceremony";
+
+/** Build the Set-Cookie header for a fresh step-up-ceremony id. Scoped to the
+ *  step-up-ceremony endpoints only (Path=/api/auth/stepup). */
+export function stepupChallengeCookieHeader(
+  ceremonyId: string,
+  ttlMs: number = CHALLENGE_TTL_MS,
+): string {
+  const parts = [
+    `${STEPUP_CHALLENGE_COOKIE_NAME}=${ceremonyId}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/api/auth/stepup",
+    `Expires=${new Date(Date.now() + ttlMs).toUTCString()}`,
+  ];
+  if (config.cookieSecure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+/** Clear the step-up-ceremony cookie once a ceremony completes (hygiene — the
+ *  single-use row is already consumed; a stale value matches no surviving row). */
+export function clearedStepupChallengeCookieHeader(): string {
+  const parts = [
+    `${STEPUP_CHALLENGE_COOKIE_NAME}=`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/api/auth/stepup",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+  ];
+  if (config.cookieSecure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+/** Read the caller's own step-up-ceremony id from the request cookie, if any. */
+export function readStepupChallengeCookie(request: Request): string | undefined {
+  const header = request.headers.get("cookie");
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq < 0) continue;
+    if (part.slice(0, eq).trim() === STEPUP_CHALLENGE_COOKIE_NAME) {
+      return part.slice(eq + 1).trim();
+    }
+  }
+  return undefined;
+}

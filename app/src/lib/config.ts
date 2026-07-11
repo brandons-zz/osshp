@@ -98,6 +98,36 @@ export const config = {
     return Number.isFinite(n) && n >= 0 ? n : 1;
   },
 
+  // ── Security notifications (Security Center Slice 2, §6) ────────────────────
+  // Two vendor-neutral, opt-in outbound channels. Presence of config = enabled;
+  // absence = disabled. DEPLOY-TIME ENV ONLY — never a settings-table / admin-UI
+  // write (§6.5): a stolen admin session must not be able to mute or repoint the
+  // alarm, and channel secrets stay out of the DB and its backups. The dispatched
+  // payload carries no secret by construction (§6.3 allowlist projection).
+
+  /** Generic webhook endpoint: osshp POSTs the plain-JSON security event here. */
+  get notifyWebhookUrl(): string | null {
+    return process.env.OSSHP_WEBHOOK_URL || null;
+  },
+  /** Optional shared secret: when set, the webhook body is HMAC-SHA256 signed
+   *  (`X-OSSHP-Signature: sha256=<hex>`) so the receiver can authenticate osshp. */
+  get notifyWebhookSecret(): string | null {
+    return process.env.OSSHP_WEBHOOK_SECRET || null;
+  },
+  /** Pushover preset: application API token. Enabled only with the user key too. */
+  get pushoverToken(): string | null {
+    return process.env.OSSHP_PUSHOVER_TOKEN || null;
+  },
+  /** Pushover preset: recipient user/group key. Enabled only with the token too. */
+  get pushoverUserKey(): string | null {
+    return process.env.OSSHP_PUSHOVER_USER_KEY || null;
+  },
+  /** Pushover messages API endpoint. Overridable so tests POST to a mock, never
+   *  the real Pushover API. Defaults to the production Pushover messages URL. */
+  get pushoverApiBase(): string {
+    return process.env.OSSHP_PUSHOVER_API_BASE || "https://api.pushover.net/1/messages.json";
+  },
+
   // ── Object storage (S3-compatible: Garage v2 locally → real S3 later) ───────
   // The minio npm client talks to any S3-compatible endpoint unchanged (spec §4).
   // Garage runs as the `storage` compose service; for real S3 the operator changes

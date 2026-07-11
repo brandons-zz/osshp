@@ -372,8 +372,8 @@
     <tr>
       <td><strong>Per-lane rate limiting</strong></td>
       <td><code>app/src/lib/auth/rate-limit.ts</code></td>
-      <td>(in-memory), config</td>
-      <td>Fixed-window limiter per lane (login/register/bootstrap); every lane throttled (H4/NO-GO #7). Per-process (single-instance self-host). <strong>M2.1: exports clientIp() (trusted-proxy-aware) as the single source of source-IP — the audit log reuses it so throttling and logging agree on the client.</strong> <strong>Issue 070: config.trustedProxyHops correctness depends on topology — direct mode is 1 hop (Caddy), Cloudflare Tunnel mode is 2 (Cloudflare edge + Caddy); <code>scripts/setup.sh --mode tunnel</code> writes <code>OSSHP_TRUSTED_PROXY_HOPS=2</code>, direct mode leaves the default (1). See docs/setup-runbook.md → "Trusted proxy hops".</strong></td>
+      <td>@/lib/db (migration 0013: rate_limit_windows), config</td>
+      <td>Fixed-window limiter per lane (login/register/bootstrap/recovery); every lane throttled (H4/NO-GO #7). <strong>Persisted in Postgres (migration 0013) as of the H4 durability follow-up — an attempt recorded before a restart/deploy is still counted after it; windows expire on schedule and a periodic sweep (mirrors auth_login_challenges) keeps the table from growing unbounded. check()/reset()/size() take the Db executor seam as their first argument, same as every other store.</strong> <strong>M2.1: exports clientIp() (trusted-proxy-aware) as the single source of source-IP — the audit log reuses it so throttling and logging agree on the client.</strong> <strong>Issue 070: config.trustedProxyHops correctness depends on topology — direct mode is 1 hop (Caddy), Cloudflare Tunnel mode is 2 (Cloudflare edge + Caddy); <code>scripts/setup.sh --mode tunnel</code> writes <code>OSSHP_TRUSTED_PROXY_HOPS=2</code>, direct mode leaves the default (1). See docs/setup-runbook.md → "Trusted proxy hops".</strong></td>
     </tr>
     <tr>
       <td><strong>Auth API routes</strong></td>
@@ -750,7 +750,7 @@
       <td>Compose auto-merges any file literally named <code>docker-compose.override.yml</code>; that filename is gitignored and this repo never ships one. Local plain-HTTP dev config (Caddy bypassed, <code>SESSION_COOKIE_INSECURE=true</code>) moved to the tracked, non-auto-merging <code>docker-compose.dev.yml</code> — requires an explicit <code>-f docker-compose.dev.yml</code> to activate. Default <code>docker compose up</code> always serves Secure cookies over Caddy/HTTPS. OWASP A05 (security-review NB-2).</td>
     </tr>
     <tr>
-      <td><strong>App healthcheck — surfaces fail-closed boot as unhealthy (security-gate-021 O-1)</strong></td>
+      <td><strong>App healthcheck — surfaces fail-closed boot as unhealthy</strong></td>
       <td><code>osshp/docker-compose.yml</code> (<code>app.healthcheck</code>)</td>
       <td><span class="badge green">Active</span></td>
       <td>A boot-time secret-strength assertion failure (weak/example <code>SESSION_SECRET</code> or <code>OSSHP_ENCRYPTION_KEY</code>) leaves the Next.js process alive, serving HTTP 500 on every request — pre-fix, <code>docker ps</code> reported <code>Up</code> with no signal anything was wrong. Added a Compose healthcheck (<code>wget --spider</code> against the public <code>/api/health</code> route) that fails in the same refused-boot state the app 500s in. Live-verified: weak-secret boot → <code>unhealthy</code>; valid-secret boot → <code>healthy</code>, app reachable at <code>https://localhost</code>.</td>

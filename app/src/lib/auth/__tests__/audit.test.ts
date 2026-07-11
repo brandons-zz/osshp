@@ -46,6 +46,40 @@ test("redactDetails replaces secret-bearing keys, keeps safe ones", () => {
   expect((out.nested as Record<string, unknown>).note).toBe("fine");
 });
 
+// ── A2 array-redaction: redactDetails recurses into arrays (hardening advisory ──
+// A2, v0.4.1). No current writer emits an array-of-objects detail value, but a
+// future one could (e.g. `details.sessions: [{...}]`) — this proves such a
+// value is redacted, not shipped through verbatim (the pre-fix behavior).
+
+test("A2 array-redaction: a secret-bearing object nested inside an array is redacted", () => {
+  const out = redactDetails({
+    lane: "recovery-code",
+    // Array of plain objects, each with a mix of safe + secret-bearing keys.
+    sessions: [
+      { id: "safe-1", token: "should-not-survive" },
+      { id: "safe-2", note: "fine", apiKey: "sk-also-should-not-survive" },
+    ],
+    // Array nested two levels deep (array of arrays of objects).
+    grouped: [[{ recovery_code: "abcd-efgh" }], [{ label: "ok" }]],
+  });
+
+  const sessions = out.sessions as Array<Record<string, unknown>>;
+  expect(sessions[0].id).toBe("safe-1");
+  expect(sessions[0].token).toBe("[REDACTED]");
+  expect(sessions[1].note).toBe("fine");
+  expect(sessions[1].apiKey).toBe("[REDACTED]");
+
+  const grouped = out.grouped as Array<Array<Record<string, unknown>>>;
+  expect(grouped[0][0].recovery_code).toBe("[REDACTED]");
+  expect(grouped[1][0].label).toBe("ok");
+
+  // Belt-and-suspenders: no secret value anywhere in the serialized output.
+  const blob = JSON.stringify(out);
+  expect(blob.includes("should-not-survive")).toBe(false);
+  expect(blob.includes("sk-also-should-not-survive")).toBe(false);
+  expect(blob.includes("abcd-efgh")).toBe(false);
+});
+
 test("buildAuditRecord carries event/outcome and a trusted-proxy-aware source IP", () => {
   const rec = buildAuditRecord("login.failure", "failure", {
     request: reqWithIp("9.9.9.9"),

@@ -19,6 +19,7 @@ export {
   readSessionCookie,
   type SessionRecord,
   type IssuedSession,
+  type SessionMetadata,
 } from "./sessions";
 
 export {
@@ -52,6 +53,10 @@ export {
   loginChallengeCookieHeader,
   clearedLoginChallengeCookieHeader,
   readLoginChallengeCookie,
+  STEPUP_CHALLENGE_COOKIE_NAME,
+  stepupChallengeCookieHeader,
+  clearedStepupChallengeCookieHeader,
+  readStepupChallengeCookie,
 } from "./challenges";
 
 export {
@@ -70,8 +75,11 @@ export {
   bootstrapLimiter,
   passwordTotpLimiter,
   recoveryCodeLimiter,
+  stepupLimiter,
+  stepupFallbackLimiter,
   clientKey,
   clientIp,
+  sessionMetadataFromRequest,
   type RateLimiter,
   type RateLimitResult,
 } from "./rate-limit";
@@ -94,6 +102,43 @@ export {
 } from "./audit";
 
 export {
+  persistAuditEvent,
+  listAuditEvents,
+  AUDIT_RETENTION_DAYS,
+  AUDIT_MAX_ROWS,
+  AUDIT_PAGE_MAX,
+  AUDIT_PAGE_DEFAULT,
+  type AuditPersistOptions,
+  type AuditEventPage,
+} from "./audit-store";
+
+// ── Security notifications (Slice 2, §6) — vendor-neutral dispatch + transports ─
+
+export {
+  shouldNotify,
+  buildNotification,
+  dispatchNotification,
+  getConfiguredNotifiers,
+  WebhookNotifier,
+  PushoverNotifier,
+  setTestNotifiers,
+  resetNotifyCoalescing,
+  type SecurityNotification,
+  type SecurityNotifier,
+  type DispatchOptions,
+} from "./notify";
+
+// ── Security Center (Slice 2) read surfaces + revoke-others primitive ─────────
+
+export {
+  listSessionsView,
+  buildSecurityOverview,
+  revokeOtherSessions,
+  type SessionView,
+  type SecurityOverview,
+} from "./security-center";
+
+export {
   assessSessionSecret,
   assertSessionSecretStrength,
   MIN_SECRET_LENGTH,
@@ -110,10 +155,25 @@ export {
   verifyPasswordAndTotp,
   regenerateRecoveryCodes,
   consumeRecoveryCode,
+  removePasskey,
   breakGlassReset,
   type TotpEnrollment,
   type BreakGlassResult,
+  type PasskeyRemovalResult,
 } from "./recovery";
+
+// ── Step-up re-authentication grants (A1) ─────────────────────────────────────
+
+export {
+  STEPUP_GRANT_TTL_MS,
+  STEPUP_GRANT_HEADER,
+  STEPUP_REQUIRED_ERROR,
+  stepUpRequiredResponse,
+  issueStepUpGrant,
+  consumeStepUpGrant,
+  type StepUpFactor,
+  type IssuedStepUpGrant,
+} from "./stepup";
 
 export { hashPassword, verifyPassword } from "./password";
 

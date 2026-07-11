@@ -68,6 +68,22 @@
   color: var(--surface, currentColor);
 }
 
+/* --- Button: link modifier (inline text affordance) ----------------------- */
+/* A real <button> for role/behavior that reads as an inline link — e.g. the  */
+/* step-up "Passkey unavailable?" fallback toggle. --accent-text is ≥4.5:1 on  */
+/* --bg in both light/dark themes (1.4.3); the global :focus-visible ring      */
+/* (structural.css) supplies 2.4.7. Inherits the surrounding text size/weight  */
+/* so it sits in running prose rather than presenting as a second solid button.*/
+.osshp-button--link {
+  background-color: transparent;
+  color: var(--accent-text, currentColor);
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 /* --- ImageDropzone: drag-and-drop + click-to-pick upload control ---------- */
 /* Idle state: dashed border drop zone with instructional text + pick button. */
 /* Drag-over: border and background shift to accent to signal readiness.      */

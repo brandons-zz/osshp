@@ -21,10 +21,11 @@ interface AdminUserRow {
   totp_enabled: boolean;
   totp_last_step: unknown;
   recovery_codes: string[];
+  recovery_codes_generated_at: unknown;
   created_at: unknown;
 }
 
-const COLUMNS = `id, passkey_credentials, password_hash, totp_secret, totp_enabled, totp_last_step, recovery_codes, created_at`;
+const COLUMNS = `id, passkey_credentials, password_hash, totp_secret, totp_enabled, totp_last_step, recovery_codes, recovery_codes_generated_at, created_at`;
 
 function mapAdminUser(row: AdminUserRow): AdminUser {
   return {
@@ -35,6 +36,9 @@ function mapAdminUser(row: AdminUserRow): AdminUser {
     totpEnabled: row.totp_enabled ?? false,
     totpLastStep: Number(row.totp_last_step ?? 0),
     recoveryCodes: row.recovery_codes ?? [],
+    recoveryCodesGeneratedAt: row.recovery_codes_generated_at
+      ? toIso(row.recovery_codes_generated_at)
+      : null,
     createdAt: toIso(row.created_at),
   };
 }
@@ -90,6 +94,9 @@ export async function updateAdminUser(
   if (patch.totpLastStep !== undefined) set("totp_last_step", patch.totpLastStep);
   if (patch.recoveryCodes !== undefined) {
     set("recovery_codes", JSON.stringify(patch.recoveryCodes), true);
+  }
+  if (patch.recoveryCodesGeneratedAt !== undefined) {
+    set("recovery_codes_generated_at", patch.recoveryCodesGeneratedAt);
   }
 
   if (sets.length === 0) return getAdminUser(db);

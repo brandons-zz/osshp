@@ -24,6 +24,15 @@
   --accent-text: #1d4ed8;    /* ≥4.5:1 on --bg */
   --focus: var(--accent-text);
   --danger-text: #b42318;    /* ≥4.5:1 on --bg / --surface */
+
+  /* Warning register (Security Center) — a caution tier between neutral and
+     danger, so "you have 2 codes left" doesn't read as "something is broken."
+     Computed against the real --bg/--surface/--surface-2 above: text
+     ≥5.3:1 (body floor 4.5:1), border ≥3:1 (non-text 1.4.11). */
+  --warning-text: #8a5a00;
+  --warning-border: #b06a00;
+  --warning-bg: #fdf1dc;
+  --success-icon: #1e7a34;   /* icon-only status green — 5.4:1 on --surface */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +49,12 @@
     --on-accent: #ffffff;
     --accent-text: #9bb6ff;  /* ≥4.5:1 on dark --bg */
     --danger-text: #ff9b8f;
+
+    /* Warning register — dark: text ≥8.2:1, border ≥7.7:1. */
+    --warning-text: #f0b429;
+    --warning-border: #e0a52f;
+    --warning-bg: #2c2410;
+    --success-icon: #4ade80;  /* 9.8:1 on dark --surface */
   }
 }
 
@@ -185,7 +200,14 @@ a { color: var(--accent-text); }
   font: inherit;
   color: var(--text);
   background: var(--surface);
-  border: var(--border-hairline) solid var(--border);
+  /* --border-ui-2 (not --border-ui, not the decorative --border): global input
+     boundary must clear WCAG 1.4.11 (>=3:1) wherever a `.field` is placed,
+     including inside a --surface-2 wrapper (e.g. `.field.photo-primary-field`,
+     PostEditor.tsx). --border-ui-2 measures >=3:1 against --surface AND
+     --surface-2 in both color schemes (light 3.69:1/3.32:1, dark 4.31:1/3.88:1);
+     --border-ui alone is only 2.95:1/2.92:1 on --surface-2 and --border
+     (decorative-exempt token) was 1.41:1 — the original finding. */
+  border: var(--border-hairline) solid var(--border-ui-2);
   border-radius: var(--radius-md);
   padding: var(--space-2xs) var(--space-xs);
   width: 100%;
@@ -306,8 +328,13 @@ a { color: var(--accent-text); }
   background: var(--surface-2);
   min-width: 10rem;
 }
-.analytics-stat-value { font-size: var(--text-xl); font-weight: var(--weight-semibold); margin: 0; }
+.analytics-stat-value { font-size: var(--text-xl); font-weight: var(--weight-semibold); margin: 0; display: flex; align-items: center; gap: var(--space-2xs); }
 .analytics-stat-label { color: var(--text-muted); font-size: var(--text-sm); margin: var(--space-3xs) 0 0; }
+/* Warning modifier (Security Center) — value, label, AND glyph shift together, so
+   color is never the sole carrier (1.4.1). Border uses --warning-border (≥3:1). */
+.analytics-stat[data-warn="true"] { background: var(--warning-bg); border-color: var(--warning-border); }
+.analytics-stat[data-warn="true"] .analytics-stat-value,
+.analytics-stat[data-warn="true"] .analytics-stat-label { color: var(--warning-text); }
 
 /* Decorative bar chart (role="img" in the component; the adjacent <table> is
    the accessible, exact-figures source — WCAG 1.4.1 not color/shape-only).
@@ -692,3 +719,85 @@ a { color: var(--accent-text); }
 /* Batch alt step-through editor (issue 057). */
 .batch-alt__progress { font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2xs); }
 .batch-alt__actions { flex-wrap: wrap; }
+
+/* ============================================================================
+   Security Center (/admin/security) — Slice 2. Anchored on the admin shell
+   tokens above (NOT the Editorial public theme). Severity is never carried by
+   text color: event/session labels stay --text/--text-muted and pair a glyph
+   with the words (spec §9 / 1.4.1). Row separation is tint + spacing, never a
+   rule (owner "no gratuitous dividing lines" preference).
+   ============================================================================ */
+
+/* Four independent card-surfaces need more air than one form's fields, so this
+   is its own rhythm rather than an edit to the shared .stack (--space-s). */
+.stack-l > * + * { margin-top: var(--space-l); }
+
+.sc-title { margin: 0 0 var(--space-2xs); }
+.sc-intro { max-width: 60ch; }
+.sc-subtle { margin: var(--space-3xs) 0 0; font-size: var(--text-sm); }
+
+/* Inline glyphs — always aria-hidden, meaning duplicated in adjacent text. */
+.icon { width: 1.1em; height: 1.1em; flex: none; }
+.icon-lg { width: 1.4em; height: 1.4em; }
+.icon-inline { width: .9em; height: .9em; vertical-align: -0.1em; }
+.icon-badge { width: .85em; height: .85em; }
+
+/* Card header row: heading on the left, action on the right; wraps under ~480px
+   so the button label never compresses. */
+.sc-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-s); margin-bottom: var(--space-xs); }
+.sc-header h2 { margin: 0; font-size: var(--text-lg); }
+.sc-header-copy { max-width: 44ch; }
+.sc-header-action { text-align: right; }
+.sc-helper { margin: var(--space-2xs) 0 0; font-size: var(--text-xs); max-width: 30ch; }
+
+/* "This device" badge — solid fill + text + glyph (triple-redundant, 1.4.1);
+   contrast is fill-vs-page, not a thin border. */
+.badge-current {
+  display: inline-flex; align-items: center; gap: var(--space-3xs);
+  background: var(--accent-solid); color: var(--on-accent);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* Sessions list — glyph + tint + spacing carry row separation (no rules). */
+.session-list { list-style: none; margin: 0; padding: 0; }
+.session-row { display: flex; gap: var(--space-xs); align-items: flex-start; padding: var(--space-xs) var(--space-2xs); border-radius: var(--radius-md); }
+.session-row:nth-child(even) { background: var(--surface-2); }
+.session-row__icon { color: var(--text-muted); margin-top: .15em; flex: none; }
+.session-row__body { flex: 1 1 auto; min-width: 0; }
+.session-row__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); }
+.session-row__meta { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-s); margin-top: var(--space-3xs); font-size: var(--text-sm); color: var(--text-muted); }
+.session-row__meta .mono { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.session-row__fallback { color: var(--text-muted); font-style: italic; }
+
+/* Revoke result — polite live region (a confirmation, not an alert). */
+.sc-result { border-radius: var(--radius-md); padding: var(--space-xs); font-size: var(--text-sm); margin-bottom: var(--space-xs); }
+.sc-result[data-kind="success"] { background: var(--surface-2); color: var(--text); }
+.sc-result[data-kind="error"] { background: var(--warning-bg); color: var(--warning-text); }
+.sc-result[hidden] { display: none; }
+
+/* Events feed — vertical scroll region (rows wrap; never horizontal-scrolls). */
+.feed-banner { display: flex; gap: var(--space-2xs); align-items: flex-start; background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-xs); margin-bottom: var(--space-xs); font-size: var(--text-sm); color: var(--text-muted); }
+.feed-banner .icon { color: var(--text-muted); margin-top: .15em; }
+.events-feed-scroll { max-height: 26rem; overflow-y: auto; }
+.events-feed-scroll:focus-visible { outline-offset: -2px; }
+.event-row { display: flex; gap: var(--space-xs); align-items: flex-start; padding: var(--space-xs) var(--space-2xs); border-radius: var(--radius-md); }
+.event-row:nth-child(even) { background: var(--surface-2); }
+.event-row__icon { margin-top: .15em; flex: none; }
+.event-row__icon--success { color: var(--success-icon); }
+.event-row__icon--danger { color: var(--danger-text); }
+.event-row__icon--warn { color: var(--warning-text); }
+.event-row__icon--info { color: var(--text-muted); }
+.event-row__body { flex: 1 1 auto; min-width: 0; }
+.event-row__label { color: var(--text); }
+.event-row__meta { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-3xs); }
+.event-row__meta .mono { font-family: var(--font-mono); font-size: var(--text-xs); }
+.sc-load-more { margin-top: var(--space-s); }
+
+@media (max-width: 30rem) {
+  .sc-header { flex-direction: column; align-items: stretch; }
+  .sc-header-action { text-align: left; }
+  .sc-header-action .osshp-button { width: 100%; }
+  .sc-helper { max-width: none; }
+}

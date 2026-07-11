@@ -20,32 +20,36 @@ import { rateLimitedResponse, readJson } from "../../_shared";
 
 export const POST = guardMutation(async (request: Request): Promise<Response> => {
   const db = getDb();
+  // Cheap, no-side-effect body-shape validation runs BEFORE the rate-limit
+  // check (which now persists to the database, migration 0013) — a request
+  // with no code can never authenticate regardless, so there is no reason to
+  // spend a database round trip or a unit of the caller's throttle budget on it.
+  const body = await readJson<{ code?: string }>(request);
+  if (!body?.code) {
+    return Response.json({ error: "code is required" }, { status: 400 });
+  }
+
   const key = clientKey("recovery-code", request);
-  const limit = recoveryCodeLimiter.check(key);
+  const limit = await recoveryCodeLimiter.check(db, key);
   if (!limit.allowed) {
-    recordAuthEvent("lockout", "failure", {
+    recordAuthEvent("lockout", "failure", { db,
       request,
       details: { lane: "recovery-code" },
     });
     return rateLimitedResponse(limit);
   }
 
-  const body = await readJson<{ code?: string }>(request);
-  if (!body?.code) {
-    return Response.json({ error: "code is required" }, { status: 400 });
-  }
-
   const reenrollToken = await consumeRecoveryCode(db, body.code);
   if (!reenrollToken) {
-    recordAuthEvent("recovery.failure", "failure", {
+    recordAuthEvent("recovery.failure", "failure", { db,
       request,
       details: { lane: "recovery-code" },
     });
     return Response.json({ error: "recovery failed" }, { status: 401 });
   }
 
-  recoveryCodeLimiter.reset(key);
-  recordAuthEvent("recovery.success", "success", {
+  await recoveryCodeLimiter.reset(db, key);
+  recordAuthEvent("recovery.success", "success", { db,
     request,
     details: { lane: "recovery-code" },
   });

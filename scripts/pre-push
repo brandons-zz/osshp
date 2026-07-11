@@ -3,7 +3,7 @@
 # Runs automatically before any git push that includes osshp/ changes.
 # Install with: osshp/scripts/setup-hooks.sh
 #
-# Gate: build + test + dependency CVE scan (local, never GitHub CI)
+# Gate: typecheck + build + test + dependency CVE scan (local, never GitHub CI)
 # Failures block the push — fix the issue, don't skip the gate (--no-verify).
 #
 # CVE scan: `bun audit` exits 1 if any advisory is found (any severity).
@@ -20,9 +20,19 @@ APP_DIR="$OSSHP_DIR/app"
 
 echo "[osshp gate] Starting pre-push validation..."
 
+# --- Typecheck -------------------------------------------------------------
+# Standalone `tsc --noEmit` over production code only (tsconfig.json excludes
+# **/*.test.ts(x) and **/__tests__/**, which sweep in without Bun's ambient
+# types otherwise — see tsconfig.test.json for the separate test-file config).
+# This is a trustworthy, fast-failing signal independent of `next build`'s
+# internal type-check.
+echo "[osshp gate] Type-checking production code..."
+cd "$APP_DIR"
+bun run typecheck
+echo "[osshp gate] Typecheck: PASS"
+
 # --- Build ---------------------------------------------------------------
 echo "[osshp gate] Building Next.js app..."
-cd "$APP_DIR"
 bun run build
 echo "[osshp gate] Build: PASS"
 

@@ -56,6 +56,31 @@ services:
       # WebAuthn — pinned from operator config, NEVER from request headers
       OSSHP_RP_ID: ${OSSHP_RP_ID}
       OSSHP_ORIGIN: ${OSSHP_ORIGIN}
+      # RP display name (cosmetic). NOTE the default is `:-osshp`, not a bare
+      # `:-`: config.rpName uses `?? "osshp"` (nullish), so an empty string
+      # would pass through as "" and blank the passkey-dialog name — unlike the
+      # numeric getters below, whose "" parses to NaN and falls back to their
+      # own default. `:-osshp` reproduces config's current unset behavior.
+      OSSHP_RP_NAME: ${OSSHP_RP_NAME:-osshp}
+      # Trusted reverse-proxy hop count (070). setup.sh writes 2 to .env for
+      # tunnel mode (Cloudflare edge + Caddy); without forwarding it here that
+      # value never reaches config.trustedProxyHops, so client-IP attribution
+      # for rate-limit keying + analytics silently stays at the direct-mode
+      # default. Optional (${VAR:-}): unset ⇒ "" ⇒ config's own default of 1.
+      OSSHP_TRUSTED_PROXY_HOPS: ${OSSHP_TRUSTED_PROXY_HOPS:-}
+      # Session idle-timeout window ("" ⇒ config default 24h when unset).
+      SESSION_IDLE_MS: ${SESSION_IDLE_MS:-}
+      # NOTE: SESSION_COOKIE_INSECURE is intentionally NOT forwarded here — it
+      # must never be settable on a prod deploy (issue 022 footgun). Local
+      # plain-HTTP dev sets it via docker-compose.dev.yml only.
+      # Security notifications (optional; see .env.example). Presence-enabled
+      # in src/lib/config.ts — unset here means the empty-string default, so
+      # `:-` is used (not a bare passthrough) to avoid a compose "variable is
+      # not set" warning when an operator leaves these commented out.
+      OSSHP_PUSHOVER_TOKEN: ${OSSHP_PUSHOVER_TOKEN:-}
+      OSSHP_PUSHOVER_USER_KEY: ${OSSHP_PUSHOVER_USER_KEY:-}
+      OSSHP_WEBHOOK_URL: ${OSSHP_WEBHOOK_URL:-}
+      OSSHP_WEBHOOK_SECRET: ${OSSHP_WEBHOOK_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
@@ -66,7 +91,7 @@ services:
     # A boot-time secret-strength assertion failure (weak/example SESSION_SECRET
     # or OSSHP_ENCRYPTION_KEY — instrumentation.ts) is fail-closed: the process
     # stays alive and serves HTTP 500 on every request instead of exiting
-    # (security-gate-021 O-1). Without a healthcheck, `docker ps` reports "Up"
+    # (fail-closed boot hardening). Without a healthcheck, `docker ps` reports "Up"
     # for a fully-refused instance. /api/health is a public, unauthenticated
     # route that 500s in that same failed state, so it doubles as the
     # fail-closed signal: healthy only when the app is actually serving.

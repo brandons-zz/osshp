@@ -21,9 +21,9 @@ import { rateLimitedResponse } from "../../_shared";
 
 export const POST = guardMutation(async (request: Request): Promise<Response> => {
   const db = getDb();
-  const limit = loginLimiter.check(clientKey("login", request));
+  const limit = await loginLimiter.check(db, clientKey("login", request));
   if (!limit.allowed) {
-    recordAuthEvent("rate_limit.trip", "failure", {
+    recordAuthEvent("rate_limit.trip", "failure", { db,
       request,
       details: { lane: "login" },
     });

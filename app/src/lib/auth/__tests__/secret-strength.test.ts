@@ -21,7 +21,7 @@ test("rejects the canonical weak literal `changeme`", () => {
   expect(assessSessionSecret("CHANGEME").ok).toBe(false);
 });
 
-// O-2 (security-gate-021): the deny-list previously covered `changeme` /
+// The deny-list previously covered `changeme` /
 // `change-me` but not the underscore variant `change_me`. `change_me` is only
 // 9 chars, so `.ok` alone can't discriminate the fix (the length floor
 // rejects it either way, pre- or post-fix) — assert the REASON is the
@@ -80,7 +80,7 @@ test("rejects the canonical weak literal `changeme` as an encryption key", () =>
   expect(assessEncryptionKeyStrength("CHANGEME").ok).toBe(false);
 });
 
-// O-2 (security-gate-021): same underscore-variant gap, same wrapper (both
+// Same underscore-variant gap, same wrapper (both
 // SESSION_SECRET and OSSHP_ENCRYPTION_KEY delegate to the shared
 // assessPresentSecret() weak-literal deny-list).
 test("rejects `change_me` (underscore variant) as an encryption key, via the weak-literal branch", () => {

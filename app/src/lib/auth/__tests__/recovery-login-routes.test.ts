@@ -288,9 +288,12 @@ test("account mutations reject unauthenticated same-origin requests with 401", a
 // ── 5. Missing-body / bad-input rejection (no DB hit) ─────────────────────────
 
 test("password-totp recovery rejects a missing body with 400 or 401 (rate-limit key required)", async () => {
-  // The route reads the body AFTER the rate-limit check (which uses clientKey, pure).
-  // A missing body (null) → the handler returns 400 (missing required fields).
-  // We test with an empty JSON body: password and totpToken absent.
+  // The route now validates the body BEFORE the rate-limit check (the limiter
+  // persists to the database as of migration 0013, so it is no longer free to
+  // run against a placeholder DATABASE_URL) — a missing body (null) → the
+  // handler returns 400 (missing required fields) without ever touching the
+  // rate limiter or the DB. We test with an empty JSON body: password and
+  // totpToken absent.
   const { POST } = await import("@/app/api/auth/recovery/password-totp/route") as {
     POST: (r: Request) => Promise<Response>;
   };

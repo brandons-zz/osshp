@@ -286,6 +286,9 @@ export interface AdminUser {
   totpLastStep: number;
   /** Hashed, single-use recovery codes (M2.2 fills them). */
   recoveryCodes: string[];
+  /** When the current recovery-code set was generated (ISO 8601), or null for a
+   *  set generated before age tracking existed (Security Center §3.4). */
+  recoveryCodesGeneratedAt: string | null;
   createdAt: string;
 }
 
@@ -304,4 +307,6 @@ export interface AdminUserUpdate {
   totpEnabled?: boolean;
   totpLastStep?: number;
   recoveryCodes?: string[];
+  /** ISO 8601 timestamp; set on every recovery-code regeneration (§3.4). */
+  recoveryCodesGeneratedAt?: string | null;
 }

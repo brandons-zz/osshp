@@ -77,6 +77,6 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
   }
 
   await setSetting(db, "site.setupComplete", true, "admin");
-  recordAuthEvent("setup.complete", "success", { request });
+  recordAuthEvent("setup.complete", "success", { db, request });
   return Response.json({ ok: true });
 });

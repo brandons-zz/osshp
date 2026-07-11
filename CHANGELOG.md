@@ -5,6 +5,116 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.4.1] — 2026-07-11
+
+Patch release hardening the 0.4.0 security-notification egress and fixing a
+latent Cloudflare-Tunnel deployment gap. Includes everything in 0.4.0.
+
+### Security
+
+- **Notification egress IP validation** — a security notification's Source IP
+  field is now emitted only when the recorded value is IP-shaped (validated
+  via `node:net`); under a misconfigured trusted-proxy hop count the field is
+  omitted rather than echoing arbitrary forwarded text. Egress-boundary only —
+  rate-limit/analytics keying is unchanged.
+- **Array-recursive secret redaction** — the audit/notification redactor now
+  recurses into arrays, so a secret-bearing object nested inside an array is
+  redacted (defense in depth; no current writer is affected).
+- **Self-notification-loop guidance** — added an operator note (security notes
+  + `.env.example`) warning against pointing the notification webhook at the
+  instance's own auth endpoints; lockout coalescing bounds the worst case.
+
+### Fixed
+
+- **Notification env vars now reach the container** — the app service's Compose
+  environment allowlist was missing the four notification variables
+  (`OSSHP_PUSHOVER_TOKEN`/`OSSHP_PUSHOVER_USER_KEY`,
+  `OSSHP_WEBHOOK_URL`/`OSSHP_WEBHOOK_SECRET`), so an operator's `.env`
+  settings never took effect and notifications silently stayed off; they are
+  now forwarded.
+- **Tunnel-mode client-IP attribution (070)** — `OSSHP_TRUSTED_PROXY_HOPS`
+  (plus `OSSHP_RP_NAME` and `SESSION_IDLE_MS`) are now forwarded into the app
+  container. In Cloudflare Tunnel mode `setup.sh` writes a hop count of 2, but
+  no Compose file passed it through, so per-client rate limiting and analytics
+  collapsed every tunnel visitor to a single key; the real client IP is now
+  attributed correctly.
+
+## [0.4.0] — 2026-07-10
+
+Fourth release, the Security Center release. Gives the admin visibility into
+and control over their own account's security state, and adds an optional
+outbound alerting channel for security-relevant events. Includes everything
+in 0.3.0.
+
+### Added
+
+- **Security Center (Slice 2)** — a new `/admin/security` admin surface:
+  - **Sessions & devices** — lists active sessions with device/IP metadata
+    captured at issuance, and lets the admin revoke an individual
+    non-current session (step-up-gated; see below).
+  - **Audit-backed events feed** — a durable, bounded audit event store
+    (Postgres) backing a paginated events feed on the security page, replacing
+    the prior in-memory/ephemeral view.
+  - **Recovery-code status** — shows remaining recovery-code count without
+    exposing the codes themselves, so the admin can tell when to regenerate.
+  - **Step-up-gated revoke-all** — revoking every other session (evicting a
+    suspected session thief) requires a fresh step-up re-authentication grant,
+    consistent with the A1 step-up model for other credential-affecting
+    actions.
+- **Security notifications** — vendor-neutral outbound alerting for
+  security-relevant events (credential changes, recovery use, break-glass,
+  lockouts, session revocations), dispatched off the same audit choke point
+  that writes the durable event store so no writer can bypass it. Two
+  built-in channels, both opt-in via deploy-time environment variables only
+  (never admin-UI-configurable, so a compromised session can't silence its
+  own alarm):
+  - A vendor-neutral webhook (plain JSON POST, optional HMAC-SHA256 body
+    signature).
+  - A Pushover preset.
+
+### Fixed
+
+- **Admin input border contrast (WCAG 1.4.11)** — the global admin form
+  input border now uses a token that clears the 3:1 non-text contrast floor
+  against the input fill, closing a below-threshold border on every admin
+  form (including the new Security Center step-up fallback inputs).
+
+## [0.3.0] — 2026-07-10
+
+Third release. Closes the gap between the published GHCR image and `main`
+(issue 079), and lands a round of Slice 1 account-security hardening.
+
+### Added
+
+- **Default brand favicon** — a full favicon/icon set (ICO, PNG, SVG) ships
+  as the platform default, replacing the prior unbranded state.
+- **Step-up re-authentication (A1)** — admin actions that change credentials
+  (password, TOTP enrollment, recovery codes, passkeys) now require a fresh,
+  single-use, factor-bound re-auth grant minted just before the change,
+  independent of the ambient session. Wired into the admin account/security
+  UI.
+- **Durable auth-throttle persistence (A2)** — the auth rate limiter's
+  window/count state now persists in Postgres (`rate_limit_windows`,
+  migration `0013`) instead of in-process memory, so throttling survives a
+  restart and is correct across multiple app instances. The check-and-increment
+  is a single atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`,
+  closing a TOCTOU race present in an earlier two-step read/write version.
+
+### Fixed
+
+- **Protocol-relative URL validator bypass (078)** — `isSafeUrl`/`isSafeHref`
+  now reject `//host` and `/\host` forms before the single-leading-slash
+  same-site allowance, closing a silent-external-redirect gap in any
+  settings field rendered as an anchor or image src.
+
+### Engineering
+
+- **Production/test `tsconfig` split + typecheck release gate** — `tsc --noEmit`
+  now runs against production sources only (`tsconfig.json`, excluding
+  `**/*.test.ts(x)` and `__tests__/**`), with a separate `tsconfig.test.json`
+  for test files. The production typecheck is a required, trustworthy
+  pre-push gate step, independent of `next build`'s internal type-check.
+
 ## [0.2.0] — 2026-07-05
 
 Second release. Adds the first-party analytics module, gallery portability,

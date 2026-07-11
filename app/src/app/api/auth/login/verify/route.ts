@@ -22,14 +22,15 @@ import {
   sessionCookieHeader,
   verifyAuthentication,
   WebAuthnVerificationError,
+  sessionMetadataFromRequest,
 } from "@/lib/auth";
 import { rateLimitedResponse, readJson } from "../../_shared";
 
 export const POST = guardMutation(async (request: Request): Promise<Response> => {
   const db = getDb();
-  const limit = loginLimiter.check(clientKey("login", request));
+  const limit = await loginLimiter.check(db, clientKey("login", request));
   if (!limit.allowed) {
-    recordAuthEvent("rate_limit.trip", "failure", {
+    recordAuthEvent("rate_limit.trip", "failure", { db,
       request,
       details: { lane: "login" },
     });
@@ -45,8 +46,8 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
   const ceremonyId = readLoginChallengeCookie(request);
   try {
     await verifyAuthentication(db, { response: body.response, ceremonyId });
-    const session = await rotateSession(db, oldToken); // S3
-    recordAuthEvent("login.success", "success", { request });
+    const session = await rotateSession(db, oldToken, sessionMetadataFromRequest(request)); // S3
+    recordAuthEvent("login.success", "success", { db, request });
     const headers = new Headers();
     headers.append("set-cookie", sessionCookieHeader(session));
     // Hygiene, not a security boundary: the single-use row is already gone —
@@ -55,7 +56,7 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
     return Response.json({ verified: true }, { headers });
   } catch (error) {
     if (error instanceof WebAuthnVerificationError) {
-      recordAuthEvent("login.failure", "failure", {
+      recordAuthEvent("login.failure", "failure", { db,
         request,
         details: { reason: error.message },
       });

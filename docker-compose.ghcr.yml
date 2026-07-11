@@ -29,5 +29,9 @@ services:
     # tamper-evidence + reproducibility. The digest is the multi-arch
     # manifest-list digest (linux/amd64 + linux/arm64). Override OSSHP_IMAGE to
     # run a different build.
-    image: ${OSSHP_IMAGE:-ghcr.io/brandons-zz/osshp:0.2.0@sha256:15295b3b97d736fb4d985fcc3c92936d9607953301a62ed8fe8605c168d950f2}
+    #
+    # Digest-pinned to the published multi-arch manifest list (linux/amd64 +
+    # linux/arm64). The release finalize step re-pins this to each release's
+    # manifest-list digest at publish time (same mechanism as 0.3.0 / 0.4.0).
+    image: ${OSSHP_IMAGE:-ghcr.io/brandons-zz/osshp:0.4.1@sha256:b48cc174d22a32acc89ba3ed6143906763368e824ad8ae105aaa9355b469fa0f}
     pull_policy: always

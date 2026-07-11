@@ -1,10 +1,12 @@
 // /admin/account/security — credential management for the single admin.
 //
 // Lets the operator set/change their password, enroll TOTP (verify-before-enable),
-// and generate recovery codes. The auth layout already enforces a valid session;
-// this page reads only the credential *status* (not the secrets themselves) to
-// pre-fill the form. All mutations flow through the existing
-// /api/admin/account/* routes which re-validate the session + CSRF-guard.
+// generate recovery codes, and manage passkeys (add/remove). The auth layout
+// already enforces a valid session; this page reads only the credential *status*
+// (not the secrets themselves) to pre-fill the form — including the passkey
+// credential ids (public, needed to target the remove endpoint). All mutations
+// flow through the /api/admin/account/* + step-up routes, which re-validate the
+// session, CSRF-guard, and require an A1 step-up grant.
 
 import { getDb } from "@/lib/db/client";
 import { getAdminUser } from "@/lib/content/admin-user";
@@ -25,6 +27,9 @@ export default async function AccountSecurityPage() {
         hasPassword={!!admin?.passwordHash}
         totpEnabled={!!admin?.totpEnabled}
         recoveryCodesRemaining={admin?.recoveryCodes?.length ?? 0}
+        passkeys={(admin?.passkeyCredentials ?? []).map((c) => ({
+          credentialId: c.credentialId,
+        }))}
       />
     </div>
   );

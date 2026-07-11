@@ -357,4 +357,150 @@ export const MIGRATIONS: Migration[] = [
       `ALTER TABLE media ADD COLUMN IF NOT EXISTS license TEXT`,
     ],
   },
+
+  {
+    // ── Rate-limit windows — durable throttle state (auth-security-assessment
+    //    H4 follow-up) ────────────────────────────────────────────────────────
+    // The auth rate-limiter (lib/auth/rate-limit.ts) previously kept its fixed
+    // windows in a process-local Map: correct within a process, but every
+    // recorded attempt (and the brute-force resistance it represents) was
+    // silently wiped on every restart/deploy. This table gives each window —
+    // per-key AND the IP-independent per-lane global window — a durable row so
+    // a restart never resets an in-progress lockout.
+    //
+    //  - key:      the window's storage key. Per-key windows use the same
+    //              `<lane>:<client-ip>` string rate-limit.ts already computes
+    //              (clientKey); each lane's global window uses a distinct
+    //              `__global__:<lane>` key so lanes never collide.
+    //  - count:    hits recorded in the current window.
+    //  - reset_at: epoch-ms the window expires — plain BIGINT (not
+    //              TIMESTAMPTZ) so the limiter's existing clock-injectable
+    //              `now: number` design (unit-tested with fixed epoch values)
+    //              carries straight through to the persisted row with no
+    //              conversion, and so restart-durability and expiry can be
+    //              asserted with plain integer comparisons in tests.
+    // No foreign keys, no cascade — this is throttle bookkeeping, not content.
+    // A row past its reset_at is inert (the next check() on that key treats it
+    // as expired and starts fresh); sweepExpiredRateLimitWindows() also prunes
+    // expired rows periodically (mirrors the auth_login_challenges sweep-on-
+    // access pattern) so the table does not grow unbounded under rotating-key
+    // traffic — the same guarantee issue 023 established for the in-memory Map.
+    id: "0013_rate_limit_windows",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS rate_limit_windows (
+        key      TEXT PRIMARY KEY,
+        count    INTEGER NOT NULL,
+        reset_at BIGINT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS rate_limit_windows_reset_at_idx
+        ON rate_limit_windows (reset_at)`,
+    ],
+  },
+
+  {
+    // ── Step-up re-authentication grants ──────────────────────────────────────
+    // A step-up grant is a single-use, short-lived, factor-bound authorization to
+    // perform exactly ONE credential-changing admin action. The operator, already
+    // holding a valid session, proves fresh presence (passkey assertion primary;
+    // password+TOTP fallback) at a step-up endpoint; that mint stores a salted-
+    // hashed token here bound to THAT session id. The gated credential-change
+    // request presents the plaintext in a header; the route consumes the grant
+    // atomically (delete-returning), verifies the hash in constant time + expiry,
+    // then performs the change. Absent/expired/consumed/wrong/foreign-session
+    // grant → one uniform 403, no oracle.
+    //
+    // Load-bearing properties:
+    //  - PRIMARY KEY (session_id) → at most one active grant per session; minting
+    //    upserts (a new step-up replaces any unconsumed prior grant, never
+    //    accumulates).
+    //  - REFERENCES sessions(id) ON DELETE CASCADE → the grant dies instantly on
+    //    ANY revocation, including the post-change revokeAllSessions (S4) and every
+    //    recovery event; a grant can never outlive the session that earned it and
+    //    never survives session rotation (a rotated session is a new id).
+    //  - token_hash is `<saltHex>:<hashHex>` (salted SHA-256, the reenroll.ts F1
+    //    shape); the plaintext is surfaced exactly once in the mint response and
+    //    never persisted or logged.
+    //
+    // Migration numbering: 0013 is the parallel throttle-persistence build (A2,
+    // above); this design's table is 0014.
+    id: "0014_stepup_grants",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS stepup_grants (
+        session_id TEXT PRIMARY KEY REFERENCES sessions (id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL,
+        factor     TEXT NOT NULL CHECK (factor IN ('passkey', 'password+totp')),
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`,
+    ],
+  },
+
+  {
+    // ── Durable auth audit trail (Security Center Slice 2 — §5 of the design) ─
+    // Finding #4 of the security review: every security-relevant auth event
+    // (login, passkey enroll, recovery lane use, lockout, session revocation,
+    // credential change, step-up) is emitted as a structured, redacted console
+    // line by recordAuthEvent (lib/auth/audit.ts) — but with ZERO durable
+    // retention. After a real incident the sole operator has no queryable
+    // history. This table is that history: the SAME post-redaction record the
+    // console line carries is dual-written here, so the two sinks can never
+    // disagree about content, and the console line remains the out-of-DB tamper
+    // anchor (an attacker with DB write access cannot reach docker logs).
+    //
+    // Insert-only by contract: the ONLY statements that ever touch this table are
+    // the INSERT (lib/auth/audit-store.ts persistAuditEvent) and the retention
+    // sweep's two constant-predicate DELETEs (age > AUDIT_RETENTION_DAYS, and the
+    // oldest-first count cap beyond AUDIT_MAX_ROWS). No UPDATE exists; no API
+    // parameter reaches the sweep predicates; the read side (a later slice) is
+    // SELECT-only. `event` is TEXT (not CHECK-enumerated): the AuthAuditEvent
+    // union is the code-side contract and a CHECK would make every future event
+    // a migration for zero integrity gain on an insert-only, single-writer table.
+    //
+    // Migration numbering: 0014 (stepup_grants, A1) is on main; this slice is
+    // 0015. Only the audit table lands here — the sessions-metadata and
+    // recovery-code-age columns from the full center design are separate slices
+    // (sessions view / recovery status), each taking its own later number.
+    id: "0015_auth_audit_events",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS auth_audit_events (
+        id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ts       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        event    TEXT NOT NULL,
+        outcome  TEXT NOT NULL CHECK (outcome IN ('success', 'failure')),
+        ip       TEXT,
+        details  JSONB
+      )`,
+      `CREATE INDEX IF NOT EXISTS auth_audit_events_ts_idx
+        ON auth_audit_events (ts DESC)`,
+    ],
+  },
+
+  {
+    // ── Security Center view metadata (Slice 2 — §3.2/§3.4 of the design) ─────
+    // The audit table landed in 0015; this migration adds the remaining columns
+    // the Security Center READ surfaces need (sessions/devices view + recovery-
+    // code age). All three are nullable — no backfill: NULL is the honest state
+    // for rows created before this migration (a session issued pre-v0.4.0, or a
+    // recovery-code set generated before age tracking), and the UI renders a
+    // documented fallback rather than fabricating history.
+    //
+    //  - sessions.created_ip / user_agent: session metadata captured at issuance
+    //    (createSession). created_ip is the trusted-proxy-aware clientIp (the 070
+    //    lesson — never a raw client-rotatable header); user_agent is attacker-
+    //    influenceable free text, stored truncated (256 chars, enforced in
+    //    createSession) and rendered strictly as text. Both are a courtesy label
+    //    for "was this me?" triage, NEVER a validity signal — missing metadata
+    //    degrades display only. These describe the OPERATOR's own admin sessions
+    //    (shown only to the authenticated operator), a different plane from the
+    //    PII-free public-visitor analytics posture (0010), which is untouched.
+    //  - admin_user.recovery_codes_generated_at: set to now() inside the same
+    //    write that regenerates the recovery-code set, so the center can show
+    //    code age. NULL for sets generated before this column existed.
+    id: "0016_security_center_metadata",
+    statements: [
+      `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_ip TEXT`,
+      `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent TEXT`,
+      `ALTER TABLE admin_user ADD COLUMN IF NOT EXISTS recovery_codes_generated_at TIMESTAMPTZ`,
+    ],
+  },
 ];

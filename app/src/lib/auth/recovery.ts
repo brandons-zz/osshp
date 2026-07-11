@@ -144,8 +144,45 @@ export async function regenerateRecoveryCodes(
   db: Db,
 ): Promise<GeneratedRecoveryCodes> {
   const generated = generateRecoveryCodes();
-  await updateAdminUser(db, { recoveryCodes: generated.hashed });
+  // Stamp the generation time in the SAME write that replaces the hash set, so the
+  // Security Center can show code age (§3.4). A fresh set starts age tracking now.
+  await updateAdminUser(db, {
+    recoveryCodes: generated.hashed,
+    recoveryCodesGeneratedAt: new Date().toISOString(),
+  });
   return generated;
+}
+
+// ── Lane 3d: passkey removal (A1 / D10) ───────────────────────────────────────
+
+/** Outcome of a passkey-removal attempt. `last_passkey` refuses to remove the
+ *  ONLY remaining passkey (passkey-primary invariant — enroll a replacement first,
+ *  or use the recovery lanes for a lost-passkey case). */
+export type PasskeyRemovalResult = "removed" | "not_found" | "last_passkey";
+
+/**
+ * Remove a passkey credential by its credential id. Refuses to remove the last
+ * remaining passkey (D10 — passkey-primary invariant; removing it would strand the
+ * operator with no primary factor). Returns "not_found" when no credential matches,
+ * "last_passkey" when it is the sole remaining passkey (no mutation), or "removed"
+ * on success. The caller (route) performs the S4 revoke-all + fresh-session flow.
+ */
+export async function removePasskey(
+  db: Db,
+  credentialId: string,
+): Promise<PasskeyRemovalResult> {
+  const admin = await getAdminUser(db);
+  if (!admin) return "not_found";
+  const exists = admin.passkeyCredentials.some(
+    (c) => c.credentialId === credentialId,
+  );
+  if (!exists) return "not_found";
+  if (admin.passkeyCredentials.length <= 1) return "last_passkey";
+  const remaining = admin.passkeyCredentials.filter(
+    (c) => c.credentialId !== credentialId,
+  );
+  await updateAdminUser(db, { passkeyCredentials: remaining });
+  return "removed";
 }
 
 // ── Lane 2: recovery-code use ─────────────────────────────────────────────────
@@ -171,7 +208,7 @@ export async function consumeRecoveryCode(
   if (!matched) return null;
   await updateAdminUser(db, { recoveryCodes: remaining });
   await revokeAllSessions(db);
-  recordAuthEvent("session.revoke_all", "success", {
+  recordAuthEvent("session.revoke_all", "success", { db,
     details: { reason: "recovery_code" },
   });
   return grantReenrollment(db);
@@ -207,10 +244,10 @@ export async function breakGlassReset(db: Db): Promise<BreakGlassResult> {
   const generated = generateRecoveryCodes();
   await updateAdminUser(db, { recoveryCodes: generated.hashed });
   const reenrollToken = await grantReenrollment(db, { ttlMs: 1000 * 60 * 30 }); // 30-min window
-  recordAuthEvent("session.revoke_all", "success", {
+  recordAuthEvent("session.revoke_all", "success", { db,
     details: { reason: "break_glass" },
   });
-  recordAuthEvent("break_glass", "success", {
+  recordAuthEvent("break_glass", "success", { db,
     details: { action: "admin_reset" },
   });
   return { recoveryCodes: generated.plaintext, reenrollToken };

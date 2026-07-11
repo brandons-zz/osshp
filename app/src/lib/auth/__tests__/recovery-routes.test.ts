@@ -10,6 +10,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { clientKey, createRateLimiter } from "@/lib/auth";
+import { createTestDb } from "@/lib/db/test-support";
 
 // The new mutating recovery + account routes.
 const ROUTE_MODULES = [
@@ -58,25 +59,37 @@ test("break-glass has NO HTTP route — no file under src/app references it (NO-
   expect(offenders).toEqual([]);
 });
 
-test("recovery lanes lock after N failures on a trusted-proxy-aware key, reset on success (B4)", () => {
-  // Mirror the recovery limiters' shape; assert the lockout semantics.
-  const limiter = createRateLimiter({ windowMs: 60_000, max: 5, globalMax: 20 });
-  // The key is the trusted-proxy-aware client IP (rightmost trusted hop), NOT a
-  // client-rotatable leftmost XFF token.
-  const req = new Request("https://osshp.example.com/api/auth/recovery/code", {
-    method: "POST",
-    headers: { "x-forwarded-for": "9.9.9.9, 10.0.0.1" }, // attacker, trusted-proxy
-  });
-  const key = clientKey("recovery-code", req);
-  expect(key).toBe("recovery-code:10.0.0.1"); // trusted (rightmost) entry, not 9.9.9.9
+test("recovery lanes lock after N failures on a trusted-proxy-aware key, reset on success (B4)", async () => {
+  const { db, close } = await createTestDb();
+  try {
+    // Mirror the recovery limiters' shape; assert the lockout semantics.
+    const limiter = createRateLimiter({
+      name: "recovery-code",
+      windowMs: 60_000,
+      max: 5,
+      globalMax: 20,
+    });
+    // The key is the trusted-proxy-aware client IP (rightmost trusted hop), NOT a
+    // client-rotatable leftmost XFF token.
+    const req = new Request("https://osshp.example.com/api/auth/recovery/code", {
+      method: "POST",
+      headers: { "x-forwarded-for": "9.9.9.9, 10.0.0.1" }, // attacker, trusted-proxy
+    });
+    const key = clientKey("recovery-code", req);
+    expect(key).toBe("recovery-code:10.0.0.1"); // trusted (rightmost) entry, not 9.9.9.9
 
-  // N=5 attempts allowed, the 6th is locked.
-  for (let i = 0; i < 5; i++) expect(limiter.check(key).allowed).toBe(true);
-  expect(limiter.check(key).allowed).toBe(false);
+    // N=5 attempts allowed, the 6th is locked.
+    for (let i = 0; i < 5; i++) {
+      expect((await limiter.check(db, key)).allowed).toBe(true);
+    }
+    expect((await limiter.check(db, key)).allowed).toBe(false);
 
-  // A success resets the counter (consecutive-failure semantics).
-  limiter.reset(key);
-  expect(limiter.check(key).allowed).toBe(true);
+    // A success resets the counter (consecutive-failure semantics).
+    await limiter.reset(db, key);
+    expect((await limiter.check(db, key)).allowed).toBe(true);
+  } finally {
+    await close();
+  }
 });
 
 test("an attacker rotating the leftmost XFF token cannot evade the lockout key", () => {

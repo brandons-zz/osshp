@@ -97,6 +97,7 @@ export function AdminNav({
             projected from a module's adminNav (issue 037 §2.1). */}
         <a href="/admin/media">Media</a>
         <a href="/admin/account/security">Account security</a>
+        <a href="/admin/security">Security Center</a>
         <a href="/admin/settings">Settings</a>
         <a href="/admin/export">Export / Backup</a>
         <a href="/admin/import">Import</a>

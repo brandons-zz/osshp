@@ -169,6 +169,39 @@ directly — only whatever `proxy` itself serves.
 
 ---
 
+## 5. Don't point `OSSHP_WEBHOOK_URL` at this instance's own auth endpoints — self-notification loop / amplification
+
+Security notifications (`OSSHP_WEBHOOK_URL` / Pushover — see the "Security
+notifications" block in `.env.example`, implemented in
+`src/lib/auth/notify.ts`) are meant to be delivered to a channel you read
+*outside* this instance — a chat relay, your own separate service, a LAN
+endpoint. Pointing the webhook back at this same osshp instance's admin
+or auth surface (e.g. an authenticated endpoint that itself performs a
+credential mutation, or anything designed to provoke a login/recovery
+attempt) creates a self-notification loop: each delivery is itself a request
+to the app, and if that request lands on a route this instance's own audit
+log tracks as a notifying event (§6.2's `NOTIFY_EVENTS` — passkey enrollment,
+a credential change, a recovery-lane use, break-glass, an all-other-sessions
+revoke, or repeated lockouts), it can trigger another notification, whose
+delivery makes another request, and so on — an amplifying loop against your
+own app and outbound channel.
+
+**This is bounded, not eliminated, regardless of configuration.** The
+`lockout` event — the one most plausible to trip accidentally in a loop
+(repeated failed attempts against an auth endpoint) — is coalesced to **at
+most one send per lane per 60-minute window** (`LOCKOUT_COALESCE_MS` in
+`notify.ts`), so even a genuine self-referential loop against a lockout-
+generating route cannot exceed that rate. The other `NOTIFY_EVENTS` members
+are not coalesced, so do not rely on coalescing alone as a reason this is
+safe — the real control is simply not wiring the webhook back into your own
+auth surface in the first place.
+
+**Your responsibility:** point `OSSHP_WEBHOOK_URL` at an external receiver
+you control, never at this instance's own domain or any endpoint that could
+itself generate an auth-audited event.
+
+---
+
 ## Summary
 
 | Trade-off | The real control | Your responsibility |
@@ -177,8 +210,10 @@ directly — only whatever `proxy` itself serves.
 | Backup archive contains `OSSHP_ENCRYPTION_KEY` (so TOTP restores) | The backup passphrase | Choose it strong and unique; store it separately from the archive |
 | Cron backups pass the passphrase via `BACKUP_PASSPHRASE` env var | Same as any cron secret | Root-only passphrase file; read inline; keep it out of logs/history |
 | Tunnel mode terminates TLS at Cloudflare's edge; the connector token is host-inspectable | The single-admin trust boundary + Cloudflare's edge | Choose direct mode if you won't trust the edge; keep `.env`/`.env.bak-*` out of git; revoke a leaked token in Zero Trust |
+| A webhook pointed at this instance's own auth surface can create a self-notification loop | Lockout coalescing bounds the worst case (1/lane/60min); it is not a substitute for correct config | Point `OSSHP_WEBHOOK_URL` at an external receiver, never back at this instance |
 
-All four are safe under osshp's single-admin threat model. They are
+All five are safe under osshp's single-admin threat model. They are
 documented here so the operational disciplines they depend on — strong
-generation, separate passphrase storage, cron-secret hygiene, and a
-deliberate edge-trust choice — are visible choices, not hidden assumptions.
+generation, separate passphrase storage, cron-secret hygiene, a deliberate
+edge-trust choice, and pointing outbound alerts at a genuinely external
+receiver — are visible choices, not hidden assumptions.

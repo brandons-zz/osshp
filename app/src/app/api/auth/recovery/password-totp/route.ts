@@ -18,21 +18,17 @@ import {
   rotateSession,
   sessionCookieHeader,
   verifyPasswordAndTotp,
+  sessionMetadataFromRequest,
 } from "@/lib/auth";
 import { rateLimitedResponse, readJson } from "../../_shared";
 
 export const POST = guardMutation(async (request: Request): Promise<Response> => {
   const db = getDb();
-  const key = clientKey("recovery-password-totp", request);
-  const limit = passwordTotpLimiter.check(key);
-  if (!limit.allowed) {
-    recordAuthEvent("lockout", "failure", {
-      request,
-      details: { lane: "recovery-password-totp" },
-    });
-    return rateLimitedResponse(limit);
-  }
-
+  // Cheap, no-side-effect body-shape validation runs BEFORE the rate-limit
+  // check (which now persists to the database, migration 0013) — a malformed
+  // request with no password/totpToken can never authenticate regardless, so
+  // there is no reason to spend a database round trip or a unit of the
+  // caller's throttle budget on it.
   const body = await readJson<{ password?: string; totpToken?: string }>(request);
   if (!body?.password || !body?.totpToken) {
     return Response.json(
@@ -41,9 +37,19 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
     );
   }
 
+  const key = clientKey("recovery-password-totp", request);
+  const limit = await passwordTotpLimiter.check(db, key);
+  if (!limit.allowed) {
+    recordAuthEvent("lockout", "failure", { db,
+      request,
+      details: { lane: "recovery-password-totp" },
+    });
+    return rateLimitedResponse(limit);
+  }
+
   const ok = await verifyPasswordAndTotp(db, body.password, body.totpToken);
   if (!ok) {
-    recordAuthEvent("recovery.failure", "failure", {
+    recordAuthEvent("recovery.failure", "failure", { db,
       request,
       details: { lane: "recovery-password-totp" },
     });
@@ -52,13 +58,17 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
   }
 
   // Both factors verified: reset the lockout counter and rotate to a fresh session.
-  passwordTotpLimiter.reset(key);
-  const session = await rotateSession(db, readSessionCookie(request));
-  recordAuthEvent("recovery.success", "success", {
+  await passwordTotpLimiter.reset(db, key);
+  const session = await rotateSession(
+    db,
+    readSessionCookie(request),
+    sessionMetadataFromRequest(request),
+  );
+  recordAuthEvent("recovery.success", "success", { db,
     request,
     details: { lane: "recovery-password-totp" },
   });
-  recordAuthEvent("login.success", "success", {
+  recordAuthEvent("login.success", "success", { db,
     request,
     details: { lane: "recovery-password-totp" },
   });

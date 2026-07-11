@@ -115,16 +115,34 @@ export interface IssuedSession {
   expiresAt: Date;
 }
 
+/** Max stored User-Agent length (design §3.2 — courtesy label, truncated). */
+const USER_AGENT_MAX = 256;
+
+/**
+ * Optional session metadata captured at issuance (Security Center §3.2), for the
+ * sessions/devices view. Both are courtesy labels for "was this me?" triage —
+ * NEVER a validity signal. `ip` is the trusted-proxy-aware clientIp resolved by
+ * the caller (the 070 lesson: never a raw client-rotatable header); `userAgent`
+ * is attacker-influenceable free text, stored truncated and rendered as text only.
+ * Absent on lanes without a request → stored as NULL (display fallback, §3.2).
+ */
+export interface SessionMetadata {
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
 /** Create a fresh session row and return its signed cookie token. */
 export async function createSession(
   db: Db,
-  opts: { ttlMs?: number } = {},
+  opts: { ttlMs?: number } & SessionMetadata = {},
 ): Promise<IssuedSession> {
   const id = randomHex(SESSION_ID_BYTES);
   const expiresAt = new Date(Date.now() + (opts.ttlMs ?? DEFAULT_TTL_MS));
+  const ip = opts.ip ?? null;
+  const userAgent = opts.userAgent ? opts.userAgent.slice(0, USER_AGENT_MAX) : null;
   await db.query(
-    `INSERT INTO sessions (id, expires_at) VALUES ($1, $2)`,
-    [id, expiresAt.toISOString()],
+    `INSERT INTO sessions (id, expires_at, created_ip, user_agent) VALUES ($1, $2, $3, $4)`,
+    [id, expiresAt.toISOString(), ip, userAgent],
   );
   return { token: await signToken(id), expiresAt };
 }
@@ -190,7 +208,7 @@ export async function revokeAllSessions(db: Db): Promise<void> {
 export async function rotateSession(
   db: Db,
   oldToken: string | undefined | null,
-  opts: { ttlMs?: number } = {},
+  opts: { ttlMs?: number } & SessionMetadata = {},
 ): Promise<IssuedSession> {
   await revokeSession(db, oldToken);
   return createSession(db, opts);

@@ -8,12 +8,15 @@
 
 import { getDb } from "@/lib/db/client";
 import {
+  consumeStepUpGrant,
   createSession,
   guardMutation,
   recordAuthEvent,
   revokeAllSessions,
   sessionCookieHeader,
   setPassword,
+  stepUpRequiredResponse,
+  sessionMetadataFromRequest,
 } from "@/lib/auth";
 import { getSessionFromRequest } from "@/lib/platform";
 
@@ -24,6 +27,17 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
   const db = getDb();
   if (!(await getSessionFromRequest(db, request))) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
+  }
+  // Step-up gate (A1): a live session is not enough to change a credential — a
+  // fresh step-up grant must be consumed here (D8 order: session → CSRF → grant →
+  // mutate). Any failure class → one uniform 403, no oracle (§7).
+  const factor = await consumeStepUpGrant(db, request);
+  if (!factor) {
+    recordAuthEvent("stepup.denied", "failure", { db,
+      request,
+      details: { action: "password" },
+    });
+    return stepUpRequiredResponse();
   }
   let body: { password?: string };
   try {
@@ -43,15 +57,15 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
   // Credential change → revoke ALL sessions (S4), then issue a fresh one for the
   // operator who made the change so they remain logged in.
   await revokeAllSessions(db);
-  recordAuthEvent("session.revoke_all", "success", {
+  recordAuthEvent("session.revoke_all", "success", { db,
     request,
     details: { reason: "password_change" },
   });
-  recordAuthEvent("credential.change", "success", {
+  recordAuthEvent("credential.change", "success", { db,
     request,
-    details: { credential: "password" },
+    details: { credential: "password", factor },
   });
-  const session = await createSession(db);
+  const session = await createSession(db, sessionMetadataFromRequest(request));
   return Response.json(
     { ok: true },
     { headers: { "set-cookie": sessionCookieHeader(session) } },
