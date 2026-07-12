@@ -56,7 +56,7 @@ export default async function PagesAdminList() {
                   <code>{p.slug}</code>
                 </td>
                 <td className="row row-gap">
-                  <a href={`/admin/pages/${p.id}/edit`}>Edit</a>
+                  <a className="osshp-button osshp-button--ghost" href={`/admin/pages/${p.id}/edit`}>Edit</a>
                   <DeleteButton
                     endpoint={`/api/admin/pages/${p.id}`}
                     listHref="/admin/pages"

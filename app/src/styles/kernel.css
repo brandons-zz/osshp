@@ -28,6 +28,10 @@
   border-radius: var(--radius-md);
   background-color: var(--accent-solid, transparent);
   color: var(--on-accent, currentColor);
+  /* Anchor-based buttons (asChild on an <a>) must not show the UA-default
+     underline — they are buttons, not links. The --link variant below re-adds
+     underline for its intentional inline-link affordance. */
+  text-decoration: none;
   cursor: pointer;
   transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }

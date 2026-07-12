@@ -33,5 +33,5 @@ services:
     # Digest-pinned to the published multi-arch manifest list (linux/amd64 +
     # linux/arm64). The release finalize step re-pins this to each release's
     # manifest-list digest at publish time (same mechanism as 0.3.0 / 0.4.0).
-    image: ${OSSHP_IMAGE:-ghcr.io/brandons-zz/osshp:0.4.1@sha256:b48cc174d22a32acc89ba3ed6143906763368e824ad8ae105aaa9355b469fa0f}
+    image: ${OSSHP_IMAGE:-ghcr.io/brandons-zz/osshp:0.5.0@sha256:5d7b9b8b1f938bf82091429a108ae98c7fa88f98cf6eb62c36bbcc52b089e82a}
     pull_policy: always

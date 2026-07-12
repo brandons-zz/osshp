@@ -194,10 +194,18 @@ export async function removePasskey(
  * session.revoke_all where revokeAllSessions is called. Returns the single-use
  * re-enrollment token (surfaced ONCE by the route so the operator's client can
  * complete the register ceremony — F1) on a match, or null if no code matched.
+ *
+ * `request` is optional and threaded straight through to the audit event so the
+ * source IP is captured (Security Center IP-surfacing follow-up): the caller
+ * (the recovery-code route) always has one in hand, so pass it. It is optional
+ * here only so call sites with no HTTP request in scope (tests, future
+ * non-route callers) still compile — the audit record's `ip` stays null then,
+ * same as before this change.
  */
 export async function consumeRecoveryCode(
   db: Db,
   code: string,
+  request?: Request,
 ): Promise<string | null> {
   const admin = await getAdminUser(db);
   if (!admin) return null;
@@ -209,6 +217,7 @@ export async function consumeRecoveryCode(
   await updateAdminUser(db, { recoveryCodes: remaining });
   await revokeAllSessions(db);
   recordAuthEvent("session.revoke_all", "success", { db,
+    request,
     details: { reason: "recovery_code" },
   });
   return grantReenrollment(db);
@@ -232,6 +241,14 @@ export interface BreakGlassResult {
  * domain change bricked the old one. Audit-logged. This function is called ONLY by
  * the CLI script — there is deliberately NO HTTP route that invokes it (NO-GO #5).
  * The caller (CLI) prints the returned codes; no secret is taken as an argument.
+ *
+ * No `request` param, deliberately: the ONLY caller is
+ * scripts/admin-break-glass.ts, run via `docker exec` inside the container —
+ * there is no inbound HTTP request anywhere on this call path to attribute an
+ * IP to (and NO-GO #5 means one is never added). Both audit events below record
+ * `ip: null`, same as every other CLI-only audit write; that is correct, not a
+ * gap, and the Security Center UI renders it as an explicit "IP not recorded"
+ * state rather than a blank.
  */
 export async function breakGlassReset(db: Db): Promise<BreakGlassResult> {
   const admin = await getAdminUser(db);

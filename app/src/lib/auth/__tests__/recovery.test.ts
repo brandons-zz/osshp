@@ -123,6 +123,47 @@ test("a recovery code is single-use and revokes ALL sessions + opens re-enrollme
   expect(await consumeRecoveryCode(db, plaintext[0])).toBeNull();
 });
 
+test("consumeRecoveryCode captures the request's client IP on the session.revoke_all audit event", async () => {
+  // Security Center IP-surfacing follow-up: the recovery-code route always has a
+  // request in hand, so it must be threaded through to the audit write.
+  const { plaintext } = await regenerateRecoveryCodes(db);
+
+  const lines: string[] = [];
+  const restore = setAuditSink((r: AuthAuditRecord) => lines.push(JSON.stringify(r)));
+  let token: string | null;
+  try {
+    const request = new Request("https://x/", {
+      headers: { "x-forwarded-for": "203.0.113.7" },
+    });
+    token = await consumeRecoveryCode(db, plaintext[0], request);
+  } finally {
+    setAuditSink(restore);
+  }
+  expect(token).toBeTypeOf("string");
+
+  const records = lines.map((l) => JSON.parse(l) as AuthAuditRecord);
+  const revokeAll = records.find((r) => r.event === "session.revoke_all");
+  expect(revokeAll).toBeDefined();
+  expect(revokeAll!.ip).toBe("203.0.113.7");
+});
+
+test("consumeRecoveryCode with no request in scope leaves the audit ip null (unchanged back-compat)", async () => {
+  const { plaintext } = await regenerateRecoveryCodes(db);
+
+  const lines: string[] = [];
+  const restore = setAuditSink((r: AuthAuditRecord) => lines.push(JSON.stringify(r)));
+  try {
+    await consumeRecoveryCode(db, plaintext[0]);
+  } finally {
+    setAuditSink(restore);
+  }
+
+  const records = lines.map((l) => JSON.parse(l) as AuthAuditRecord);
+  const revokeAll = records.find((r) => r.event === "session.revoke_all");
+  expect(revokeAll).toBeDefined();
+  expect(revokeAll!.ip).toBeNull();
+});
+
 test("break-glass revokes all sessions, mints fresh codes, opens re-enrollment, audits (no secret)", async () => {
   await regenerateRecoveryCodes(db);
   const s = await createSession(db);
@@ -141,7 +182,8 @@ test("break-glass revokes all sessions, mints fresh codes, opens re-enrollment, 
   expect(await isReenrollmentOpen(db)).toBe(true);
 
   // Audit: break_glass + session.revoke_all emitted; no recovery code value leaked.
-  const events = lines.map((l) => JSON.parse(l).event);
+  const records = lines.map((l) => JSON.parse(l) as AuthAuditRecord);
+  const events = records.map((r) => r.event);
   expect(events).toContain("break_glass");
   expect(events).toContain("session.revoke_all");
   for (const line of lines) {
@@ -149,6 +191,12 @@ test("break-glass revokes all sessions, mints fresh codes, opens re-enrollment, 
       expect(line.includes(code)).toBe(false);
     }
   }
+  // breakGlassReset is CLI-only (NO-GO #5) — there is no HTTP request anywhere
+  // on this path to attribute an IP to, so both events legitimately carry
+  // ip: null (see the function's doc comment; the Security Center UI renders
+  // this as an explicit "IP not recorded" state, not a blank).
+  expect(records.find((r) => r.event === "session.revoke_all")!.ip).toBeNull();
+  expect(records.find((r) => r.event === "break_glass")!.ip).toBeNull();
 });
 
 test("re-enrollment registration lane is gated: open only after a recovery event + with its token (F1)", async () => {

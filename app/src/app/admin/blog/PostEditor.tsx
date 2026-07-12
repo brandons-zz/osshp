@@ -40,6 +40,8 @@ import {
   usePhotoMediaPreview,
   PhotoMediaCleanupOption,
 } from "@/app/admin/photos/PhotoMediaCleanupOption";
+import { TagCombobox, type TagOption } from "@/components/admin/TagCombobox";
+import { slugify } from "@/lib/slug";
 
 /** One gallery image as loaded for editing (issue 047). */
 export interface GalleryInitialImage {
@@ -76,14 +78,6 @@ export interface PostInitial {
 // surface. StarterKit supplies Text, CodeBlock, and undo/redo; its own Document is
 // disabled so this constrained one is the schema's top node.
 const MarkdownDocument = Document.extend({ content: "codeBlock" });
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function parseTags(raw: string): Array<{ name: string; slug: string }> {
   return raw
@@ -154,7 +148,9 @@ export function PostEditor({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
-  const [tags, setTags] = useState(initial?.tags ?? "");
+  const [tags, setTags] = useState<TagOption[]>(() =>
+    parseTags(initial?.tags ?? ""),
+  );
   const [markdown, setMarkdown] = useState(initial?.body ?? "");
   const [scheduleAt, setScheduleAt] = useState(
     initial?.status === "scheduled" ? isoToLocalInput(initial.publishDate) : "",
@@ -393,7 +389,7 @@ export function PostEditor({
           : coverSrc
             ? { src: coverSrc, alt: coverAlt }
             : null,
-        tags: parseTags(tags),
+        tags,
         // Featured applies to both post types; sent unconditionally.
         featured,
         // Only sent for photo-posts; ignored by the blog post API route.
@@ -636,8 +632,8 @@ export function PostEditor({
         />
       </div>
       <div className="field">
-        <label htmlFor="tags">Tags (comma-separated, optional)</label>
-        <input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} />
+        <label htmlFor="tags">Tags (optional)</label>
+        <TagCombobox id="tags" value={tags} onChange={setTags} />
       </div>
 
       {/* Feature on the home showcase — applies to BOTH articles and photo posts. */}

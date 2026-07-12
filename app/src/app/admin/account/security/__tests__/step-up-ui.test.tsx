@@ -1,7 +1,7 @@
-// Step-up UI wiring (A1 / D14) — structural contract + wiring source-scan.
+// Step-up UI wiring — structural contract + wiring source-scan.
 //
 // The interaction behavior (focus trap, Esc, the WebAuthn ceremony) is
-// browser-native and re-gated live by Val; these tests pin the structural AA
+// browser-native and verified separately; these tests pin the structural AA
 // contract of the StepUpDialog and the fact that EVERY credential-change action in
 // AccountSecurityForm first obtains a step-up grant and sends it on the
 // x-osshp-stepup-grant header (the wiring that was missing and caused every form to

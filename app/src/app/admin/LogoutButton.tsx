@@ -12,7 +12,7 @@ export function LogoutButton() {
     window.location.assign("/");
   }
   return (
-    <Button onClick={signOut} aria-label="Sign out">
+    <Button className="osshp-button--secondary" onClick={signOut} aria-label="Sign out">
       Sign out
     </Button>
   );

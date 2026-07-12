@@ -6,7 +6,8 @@
 // returns NO session. The operator then re-establishes a passkey through the
 // re-enrollment registration lane, which issues a session only once the new
 // passkey is verified. Rate-limited as account lockout (B4); CSRF-guarded;
-// audit-emitting (session.revoke_all is emitted inside consumeRecoveryCode).
+// audit-emitting (session.revoke_all is emitted inside consumeRecoveryCode,
+// with this request threaded through so its source IP is captured).
 
 import { getDb } from "@/lib/db/client";
 import {
@@ -39,7 +40,7 @@ export const POST = guardMutation(async (request: Request): Promise<Response> =>
     return rateLimitedResponse(limit);
   }
 
-  const reenrollToken = await consumeRecoveryCode(db, body.code);
+  const reenrollToken = await consumeRecoveryCode(db, body.code, request);
   if (!reenrollToken) {
     recordAuthEvent("recovery.failure", "failure", { db,
       request,

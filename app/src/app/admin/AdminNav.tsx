@@ -96,6 +96,10 @@ export function AdminNav({
             Pages), so it is a static link like Settings/Export/Import — never
             projected from a module's adminNav (issue 037 §2.1). */}
         <a href="/admin/media">Media</a>
+        {/* Tags are likewise CORE — shared by Blog and Photos posts — so this
+            is a static link rather than projected from a single module's
+            adminNav (tag-management feature). */}
+        <a href="/admin/tags">Tags</a>
         <a href="/admin/account/security">Account security</a>
         <a href="/admin/security">Security Center</a>
         <a href="/admin/settings">Settings</a>

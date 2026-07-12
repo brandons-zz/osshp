@@ -16,6 +16,14 @@
 // is a tabbable role="region"; the revoke result is a polite role="status" live
 // region; full flow is native <button>/<dialog>, keyboard-operable, reflows at
 // 320px.
+//
+// IP-as-location-signal (v0.4.x follow-up): the operator's only practical way to
+// recognize an unexpected session/event is the source IP — the session id is
+// deliberately truncated (a full id is a live credential). `IpField` renders a
+// labeled "IP <value>" pair (never bare mono text) in both the sessions list and
+// the events feed, leading ahead of the session's truncated ref, plus an
+// explicit, quiet "IP not recorded" state for rows/events with a NULL ip
+// (written before the v0.4.0 capture existed) — never a silent blank.
 
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui";
@@ -247,6 +255,23 @@ function eventIcon(kind: Kind) {
   return <IconDot cls={cls} />;
 }
 
+/**
+ * A labeled IP field, shared by the sessions list and the events feed — the IP
+ * is the operator's key second scan signal alongside the (deliberately)
+ * truncated session reference, so it must never render as bare, unlabeled mono
+ * text. A NULL ip (rows/events written before the v0.4.0 metadata capture
+ * existed) renders an explicit, quiet "IP not recorded" state — never a blank.
+ */
+function IpField({ ip }: { ip: string | null }) {
+  return ip ? (
+    <span>
+      IP <span className="mono">{ip}</span>
+    </span>
+  ) : (
+    <span className="ip-unknown">IP not recorded</span>
+  );
+}
+
 // ── surfaces ──────────────────────────────────────────────────────────────────
 
 function AtAGlance({ overview }: { overview: SecurityOverview }) {
@@ -377,10 +402,16 @@ function SessionsCard({
                   <span title={s.createdAt}>Signed in {relativeTime(s.createdAt)}</span>
                   <span title={s.lastSeenAt}>Last active {relativeTime(s.lastSeenAt)}</span>
                   <span title={s.expiresAt}>Expires {relativeTime(s.expiresAt)}</span>
-                  <span className="mono" title="Session id prefix — the full id never leaves the server">
-                    id {s.idPrefix}…
+                  {/* IP leads as the location signal; the session ref stays last and
+                      reads unambiguously as a partial, non-secret reference — the
+                      full session id never leaves the server. */}
+                  <IpField ip={s.createdIp} />
+                  <span
+                    className="mono"
+                    title="Partial session reference — the full session id never leaves the server"
+                  >
+                    partial id {s.idPrefix}…
                   </span>
-                  {s.createdIp ? <span className="mono">{s.createdIp}</span> : null}
                 </div>
               </div>
             </li>
@@ -442,12 +473,8 @@ function EventsCard({
                     <div className="event-row__label">{label}</div>
                     <div className="event-row__meta">
                       <span title={e.ts}>{relativeTime(e.ts)}</span>
-                      {e.ip ? (
-                        <>
-                          {" · "}
-                          <span className="mono">{e.ip}</span>
-                        </>
-                      ) : null}
+                      {" · "}
+                      <IpField ip={e.ip} />
                     </div>
                   </div>
                 </li>

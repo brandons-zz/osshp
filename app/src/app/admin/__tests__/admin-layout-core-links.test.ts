@@ -20,9 +20,10 @@ const CORE_HREFS = [
   "/admin/account/security",
   "/admin/export",
   "/admin/import",
+  "/admin/tags",
 ];
 
-test("AdminNav hardcodes Settings/Account/Export/Import as unconditional literal links", () => {
+test("AdminNav hardcodes Settings/Account/Export/Import/Tags as unconditional literal links", () => {
   for (const href of CORE_HREFS) {
     expect(SRC).toContain(`href="${href}"`);
   }

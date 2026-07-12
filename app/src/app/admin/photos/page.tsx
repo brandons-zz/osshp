@@ -56,7 +56,7 @@ export default async function PhotosAdminList() {
                   <code>{p.slug}</code>
                 </td>
                 <td className="row row-gap">
-                  <a href={`/admin/photos/${p.id}/edit`}>Edit</a>
+                  <a className="osshp-button osshp-button--ghost" href={`/admin/photos/${p.id}/edit`}>Edit</a>
                   <DeleteButton
                     endpoint={`/api/admin/photos/posts/${p.id}`}
                     listHref="/admin/photos"

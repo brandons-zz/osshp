@@ -33,6 +33,35 @@
   --warning-border: #b06a00;
   --warning-bg: #fdf1dc;
   --success-icon: #1e7a34;   /* icon-only status green — 5.4:1 on --surface */
+
+  /* --- Admin design refresh (2026-07-12, owner-approved) — token EVOLUTIONS
+     layered on the shell base above; not a rebuild. These add depth, status
+     registers, and tonal surfaces so the admin reads as one designed system.
+     Elevation/tint surfaces are decorative separation (a card/row is also
+     identified by content, padding and focus ring) so they are 1.4.11-exempt;
+     where a boundary is load-bearing it uses the existing --border-ui(-2)
+     (≥3:1) tokens. ---------------------------------------------------------- */
+
+  /* Elevation ladder (non-color; no contrast concern). */
+  --elev-1: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.07);
+  --elev-2: 0 2px 4px rgba(16,24,40,.05), 0 6px 16px rgba(16,24,40,.09);
+  --elev-3: 0 12px 32px rgba(16,24,40,.14);
+  --ring-inset: inset 0 0 0 1px rgba(16,24,40,.04); /* faint top-of-card seam */
+
+  /* Status registers — text stays --text (≥11.9:1); hue rides a colored dot
+     (dot ≥3.83:1 on its fill, 1.4.11) so meaning never rides on color alone
+     (1.4.1). Explicit hexes → exact AA (verified in the approved prototype). */
+  --st-pub-bg: #e7f4ea;   --st-pub-dot: #1e7a34;
+  --st-draft-bg: #edeeec;  --st-draft-dot: #54585f;
+  --st-sched-bg: #fdf1dc;  --st-sched-dot: #b06a00;
+  --st-info-bg: #e8eefc;   --st-info-dot: #1d4ed8;
+
+  /* Secondary/ghost button surfaces, tonal hovers, list + inset surfaces. */
+  --btn-2-bg: #ffffff;   --btn-2-hover: #f3f3f1;
+  --ghost-hover: #f0f1ee;
+  --nav-active-bg: #e8eefc;
+  --row-zebra: #faf9f7;  --row-hover: #f2f4fb;
+  --inset-bg: #f6f6f4;   /* recessed field-group / list-panel surface */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +84,24 @@
     --warning-border: #e0a52f;
     --warning-bg: #2c2410;
     --success-icon: #4ade80;  /* 9.8:1 on dark --surface */
+
+    /* Admin design refresh — dark. Elevation reads via a top-highlight
+       hairline + deep soft shadow; status/tonal surfaces retuned for dark. */
+    --elev-1: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
+    --elev-2: 0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+    --elev-3: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+    --ring-inset: inset 0 0 0 1px rgba(255,255,255,.04);
+
+    --st-pub-bg: #16271b;   --st-pub-dot: #4ade80;
+    --st-draft-bg: #2a2c33;  --st-draft-dot: #a3a7af;
+    --st-sched-bg: #2c2410;  --st-sched-dot: #e0a52f;
+    --st-info-bg: #1a2740;   --st-info-dot: #9bb6ff;
+
+    --btn-2-bg: #23252b;   --btn-2-hover: #2c2f36;
+    --ghost-hover: #23252b;
+    --nav-active-bg: #1a2740;
+    --row-zebra: #1f2126;  --row-hover: #222a3d;
+    --inset-bg: #202228;
   }
 }
 
@@ -124,13 +171,33 @@ a { color: var(--accent-text); }
 }
 .shell-nav-links a {
   display: block;
+  position: relative;
   padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-md);
   text-decoration: none;
   color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
-.shell-nav-links a:hover { background: var(--surface-2); }
-.shell-nav-links a[aria-current="page"] { background: var(--surface-2); font-weight: var(--weight-semibold); }
+.shell-nav-links a:hover { background: var(--ghost-hover); }
+.shell-nav-links a[aria-current="page"] {
+  background: var(--nav-active-bg);
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+/* Signature: a rounded accent bar marks the active item (non-text ≥3:1). */
+.shell-nav-links a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-2xs));
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1.1rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-solid);
+}
 
 @media (max-width: 48rem) {
   /* A compact square hamburger button — >=44px hit target, a non-text
@@ -185,11 +252,31 @@ a { color: var(--accent-text); }
 }
 
 /* --- Generic chrome blocks ------------------------------------------------- */
+/* Depth via the elevation ladder + a whisper-thin ring seam instead of a heavy
+   border (admin design refresh) — a card reads as an intentional unit through
+   light, not a hairline. */
 .shell-card {
   background: var(--surface);
-  border: var(--border-hairline) solid var(--border);
+  border: 0;
   border-radius: var(--radius-lg);
   padding: var(--space-m);
+  box-shadow: var(--elev-1), var(--ring-inset);
+}
+
+/* Dashboard tiles: the module cards are actionable, so they lift on hover and
+   the entry link fills the tile as a plain (non-underlined) target. Scoped to
+   the dashboard's `.plain-list` so form-section `.shell-card`s stay static. */
+.plain-list > .shell-card {
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.plain-list > .shell-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elev-3);
+}
+.plain-list > .shell-card > a {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
 }
 
 .field { display: flex; flex-direction: column; gap: var(--space-3xs); margin-bottom: var(--space-s); }
@@ -212,6 +299,16 @@ a { color: var(--accent-text); }
   padding: var(--space-2xs) var(--space-xs);
   width: 100%;
   box-sizing: border-box;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+/* Refined focus: accent border + a soft accent ring (a valid visible-focus cue
+   for 2.4.7 in place of the default outline on these bounded fields). */
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent-solid);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-solid) 22%, transparent);
 }
 .field textarea { min-height: 12rem; resize: vertical; font-family: var(--font-mono); }
 .field-hint { font-size: var(--text-xs); color: var(--text-muted); }
@@ -286,23 +383,145 @@ a { color: var(--accent-text); }
 .wizard-steps li[aria-current="step"] { color: var(--text); font-weight: var(--weight-semibold); }
 
 /* --- Module/post lists ---------------------------------------------------- */
-.choice { display: flex; gap: var(--space-2xs); align-items: flex-start; padding: var(--space-xs); border: var(--border-hairline) solid var(--border); border-radius: var(--radius-md); }
+/* Module toggles / setup choices — elevated card rows with a hover lift instead
+   of a hairline box, matching the admin design refresh. The native checkbox
+   keeps its role/name/value (4.1.2); accent-color themes the check. */
+.choice {
+  display: flex;
+  gap: var(--space-s);
+  align-items: flex-start;
+  padding: var(--space-s) var(--space-m);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elev-1), var(--ring-inset);
+  cursor: pointer;
+  transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.choice:hover { box-shadow: var(--elev-2); transform: translateY(-1px); }
 .choice + .choice { margin-top: var(--space-2xs); }
+.choice input[type="checkbox"] {
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  width: auto;
+  flex: none;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent-solid);
+}
 
-.admin-table { width: 100%; border-collapse: collapse; }
-.admin-table th, .admin-table td { text-align: left; padding: var(--space-2xs) var(--space-xs); border-bottom: var(--border-hairline) solid var(--border); }
-/* Admin tables reflow at narrow widths (WCAG 1.4.10): fixed layout keeps the
-   table inside the content column and the cell content wraps instead of forcing
-   page-level horizontal scroll. Scoped to the single-column breakpoint so the
-   desktop table layout is unchanged. */
+/* Content lists (Blog / Photos / Pages / Tags) — a recessed panel whose rows
+   read as designed units via a quiet zebra tint, generous padding and a hover
+   tint, with NO dividing hairline rules (owner "no dividing lines" pref).
+   border-collapse:separate lets the panel round its corners and clip the row
+   tints; the header is an uppercase micro-label register. */
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--inset-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ring-inset);
+  overflow: hidden;
+}
+.admin-table thead th {
+  text-align: left;
+  padding: var(--space-xs) var(--space-s);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: var(--weight-semibold);
+}
+.admin-table tbody td {
+  text-align: left;
+  padding: var(--space-s);
+  vertical-align: middle;
+}
+.admin-table tbody tr { transition: background var(--dur) var(--ease); }
+.admin-table tbody tr:nth-child(odd) { background: var(--row-zebra); }
+.admin-table tbody tr:hover { background: var(--row-hover); }
+/* Admin tables reflow at narrow widths (WCAG 1.4.10). A fixed-column table at
+   320px divides into equal ~50-64px columns, so titles/slugs/button labels wrap
+   character-by-character (a 6-row "R/e/n/a/m/e" tower). Below the shell's 48rem
+   breakpoint the table instead reflows to stacked row-cards: each row is a card
+   and each cell spans the full width, so text wraps at word boundaries and no
+   content is forced page-horizontal. Desktop table layout is unchanged. */
 @media (max-width: 48rem) {
-  .admin-table { table-layout: fixed; }
-  .admin-table th,
-  .admin-table td { overflow-wrap: break-word; word-break: break-word; }
+  .admin-table {
+    display: block;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+  /* Column headers are hidden visually but kept in the a11y tree — each row-card
+     is self-describing (title first, then status/slug/actions). */
+  .admin-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .admin-table tbody { display: block; }
+  .admin-table tbody tr {
+    display: block;
+    padding: var(--space-s);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--elev-1), var(--ring-inset);
+  }
+  /* Uniform elevated cards at narrow widths — zebra/hover tints are a desktop
+     wide-table affordance, not needed once each row is its own card. */
+  .admin-table tbody tr:nth-child(odd),
+  .admin-table tbody tr:hover { background: var(--surface); }
+  .admin-table tbody tr + tr { margin-top: var(--space-2xs); }
+  .admin-table tbody td {
+    display: block;
+    padding: var(--space-3xs) 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  .admin-table tbody td:first-child { font-weight: var(--weight-semibold); }
+  /* Keep inline action/control cells (Edit/Delete, merge select + button,
+     rename input group) laid out as a wrapping row, not stacked block cells. */
+  .admin-table tbody td.row { display: flex; flex-wrap: wrap; padding-top: var(--space-2xs); }
   .admin-table code { overflow-wrap: anywhere; word-break: break-word; }
 }
-.status-pill { font-size: var(--text-xs); font-weight: var(--weight-semibold); padding: 0 var(--space-2xs); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text-muted); }
-.status-pill[data-status="published"] { color: var(--on-accent); background: var(--accent-solid); }
+
+/* Status as a register: soft tinted fill + a colored dot + the label, so
+   meaning never rides on color alone (1.4.1). Text stays --text (≥11.9:1);
+   the dot (::before, no markup change) carries the hue (≥3.83:1, 1.4.11). */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: 0.15rem var(--space-2xs) 0.15rem var(--space-xs);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text);
+  line-height: 1.4;
+}
+.status-pill::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--text-muted);
+  flex: none;
+}
+.status-pill[data-status="published"] { background: var(--st-pub-bg); }
+.status-pill[data-status="published"]::before { background: var(--st-pub-dot); }
+.status-pill[data-status="draft"] { background: var(--st-draft-bg); }
+.status-pill[data-status="draft"]::before { background: var(--st-draft-dot); }
+.status-pill[data-status="scheduled"] { background: var(--st-sched-bg); }
+.status-pill[data-status="scheduled"]::before { background: var(--st-sched-dot); }
 
 /* --- Analytics dashboard (issue 029) ---------------------------------------
    Window-selector tabs mirror the existing aria-current="page" pattern (see
@@ -771,6 +990,12 @@ a { color: var(--accent-text); }
 .session-row__meta .mono { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .session-row__fallback { color: var(--text-muted); font-style: italic; }
 
+/* Explicit "IP not recorded" state (sessions + events, shared) — quiet, not a
+   warning: the metadata simply predates the v0.4.0 capture. Both parent .meta
+   rows already set color: var(--text-muted); italic is the only distinguishing
+   treatment, matching .session-row__fallback's quiet-absence pattern. */
+.ip-unknown { font-style: italic; }
+
 /* Revoke result — polite live region (a confirmation, not an alert). */
 .sc-result { border-radius: var(--radius-md); padding: var(--space-xs); font-size: var(--text-sm); margin-bottom: var(--space-xs); }
 .sc-result[data-kind="success"] { background: var(--surface-2); color: var(--text); }
@@ -801,3 +1026,220 @@ a { color: var(--accent-text); }
   .sc-header-action .osshp-button { width: 100%; }
   .sc-helper { max-width: none; }
 }
+
+/* --- Tag combobox (post editor) & /admin/tags (tag-management feature) ---- */
+
+.tag-combobox { display: flex; flex-direction: column; gap: var(--space-2xs); }
+.tag-chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin: 0; }
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--border-ui-2);
+  border-radius: var(--radius-full);
+  padding: var(--space-3xs) var(--space-2xs);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.tag-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0 0 0 var(--space-3xs);
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tag-chip-remove:hover { color: var(--text); }
+
+/* Positioning context for the listbox popup, which must overlay following
+   content rather than push it down (reflow-safe at 320px, WCAG 1.4.10). */
+.tag-combobox-input-wrap { position: relative; }
+
+.tag-listbox {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + var(--space-3xs));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--space-3xs) 0;
+  list-style: none;
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border-ui-2);
+  border-radius: var(--radius-md);
+  max-height: 16rem;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+}
+.tag-option {
+  padding: var(--space-2xs) var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+/* Highlighted (keyboard/mouse) option — same accent-solid/on-accent pairing
+   already used for the published status-pill above, so this reuses an
+   already-verified >=4.5:1 text pairing rather than introducing a new one. */
+.tag-option[data-active] { background: var(--accent-solid); color: var(--on-accent); }
+.tag-option[data-create] { font-style: italic; }
+
+/* /admin/tags "Merge into" <select>: a bare <select> takes its intrinsic
+   width from its widest option, and inside the fixed-layout admin table at a
+   320px viewport that pushed the row past the content column (horizontal page
+   scroll — WCAG 1.4.10). min-width:0 lets it shrink below that intrinsic
+   width as a flex child; max-width:100% caps it to the cell; the surrounding
+   .row already wraps the Merge button underneath when space is tight. The
+   long option labels stay readable — the closed control truncates with an
+   ellipsis, and opening it shows each option in full. */
+.tag-merge-select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+
+/* ============================================================================
+   ADMIN DESIGN REFRESH — component layer (2026-07-12).
+   Real button affordance, the previously-undefined settings row-editor cluster,
+   and composed form-field pieces. Anchors on the shell tokens above (NOT the
+   public Editorial theme). shell.css loads after kernel.css, so the primary-
+   button enhancement here layers onto the kernel .osshp-button.
+   ============================================================================ */
+
+/* --- Buttons -------------------------------------------------------------- */
+/* Primary = the unmodified .osshp-button (kernel supplies the accent fill).
+   Give it real weight: an elevation shadow + a hover lift. The negation scopes
+   this to primary only, so --danger/--link (kernel) and --secondary/--ghost
+   (below) keep their own treatment untouched. */
+.osshp-button:not([class*="osshp-button--"]) {
+  box-shadow: var(--elev-1);
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.osshp-button:not([class*="osshp-button--"]):hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--accent-solid) 90%, #000);
+  box-shadow: var(--elev-2);
+  transform: translateY(-1px);
+}
+.osshp-button:not([class*="osshp-button--"]):active:not(:disabled) { transform: translateY(0); }
+.osshp-button:not([class*="osshp-button--"]):disabled { box-shadow: var(--elev-1); transform: none; }
+
+/* Secondary — a real surface button (fill + boundary + depth), not link-text. */
+.osshp-button--secondary {
+  background-color: var(--btn-2-bg);
+  color: var(--text);
+  /* Load-bearing boundary ("fill + boundary + depth"), so it must clear 1.4.11
+     ≥3:1. --border-ui is only 2.92:1 on the dark --btn-2-bg; --border-ui-2
+     clears it in both modes (light 3.69:1 on #fff, dark 3.88:1 on #23252b). */
+  box-shadow: var(--elev-1), inset 0 0 0 var(--border-hairline) var(--border-ui-2);
+  transition: background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+.osshp-button--secondary:hover:not(:disabled) {
+  background-color: var(--btn-2-hover);
+  box-shadow: var(--elev-2), inset 0 0 0 var(--border-hairline) var(--border-ui-2);
+  transform: translateY(-1px);
+}
+
+/* Ghost — quiet, tonal hover; the low-emphasis inline action ("Edit"). */
+.osshp-button--ghost {
+  background-color: transparent;
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  box-shadow: none;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.osshp-button--ghost:hover:not(:disabled) { background-color: var(--ghost-hover); }
+
+/* --- Settings row-editor (nav / social) ----------------------------------- */
+/* These classes are referenced by SettingsForm.tsx but were previously defined
+   NOWHERE — the reorder ↑↓✕ controls rendered as raw browser buttons. Each row
+   is a composed unit card; the reorder cluster is one segmented icon control. */
+.row-editor { display: flex; flex-direction: column; gap: var(--space-2xs); }
+.row-editor-row {
+  display: flex;
+  gap: var(--space-s);
+  align-items: flex-end;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-s);
+  box-shadow: var(--elev-1), var(--ring-inset);
+}
+.row-editor-fields {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--space-s);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.row-editor-fields .field { margin-bottom: 0; }
+
+/* Reorder cluster — one segmented icon control with a shared boundary. */
+.row-editor-actions {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 var(--border-hairline) var(--border-ui-2);
+  overflow: hidden;
+  flex: none;
+}
+.row-editor-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-base);
+  line-height: 1;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.row-editor-btn + .row-editor-btn { border-left: var(--border-hairline) solid var(--border-ui-2); }
+.row-editor-btn:hover:not(:disabled) { background: var(--ghost-hover); }
+.row-editor-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.row-editor-btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--danger-text) 16%, transparent);
+  color: var(--danger-text);
+}
+.row-editor-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  background: transparent;
+  color: var(--accent-text);
+  border: var(--border-hairline) dashed var(--border-ui);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xs) var(--space-s);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.row-editor-add:hover:not(:disabled) { background: var(--ghost-hover); border-color: var(--accent-solid); }
+.row-editor-add:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (max-width: 40rem) {
+  .row-editor-row { flex-direction: column; align-items: stretch; }
+  .row-editor-fields { grid-template-columns: 1fr; }
+  .row-editor-actions { align-self: flex-end; }
+}
+
+/* --- Composed form pieces (referenced by SettingsForm.tsx) ---------------- */
+/* Field-group label (a legend for a row-editor group). */
+.field-label { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+/* Inline field warning (URL safety / disabled-module notice). Warning register:
+   --warning-text is ≥4.5:1 body on --surface (1.4.3). */
+.field-warn {
+  display: block;
+  margin-top: var(--space-3xs);
+  font-size: var(--text-xs);
+  color: var(--warning-text);
+}
+/* Inline action-cell gap (list Edit/Delete, tag rename/merge groups). */
+.row-gap { gap: var(--space-2xs); }

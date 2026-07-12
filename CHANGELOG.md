@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.0] — 2026-07-12
+
+Minor release layering three admin-console improvements over 0.4.1 (no schema
+change; upgrade is an image swap). Includes everything in 0.4.1.
+
+### Added
+
+- **Security Center IP visibility** — the Security Center now shows a labeled IP
+  address on each active session and on each security event, so an operator can
+  see where a session or event originated at a glance. Sessions and events
+  recorded before IP capture existed render an explicit "not recorded" state
+  rather than a blank, so the absence is unambiguous.
+- **Tag management** — the post editor gains a tag selector with autocomplete
+  over existing tags and inline creation of new ones, and a new `/admin/tags`
+  screen lets the operator rename, merge, and delete tags across the site. Tags
+  reuse the existing data model; no migration is required.
+
+### Changed
+
+- **Admin design refresh** — a polished, consistent component system across the
+  admin area (buttons, form controls, status pills, list/table surfaces, and
+  reorder controls), replacing the earlier unstyled and inconsistent chrome
+  with refined components while preserving the neutral admin shell and WCAG 2.1
+  AA conformance.
+
 ## [0.4.1] — 2026-07-11
 
 Patch release hardening the 0.4.0 security-notification egress and fixing a
