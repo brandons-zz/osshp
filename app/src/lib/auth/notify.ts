@@ -29,9 +29,9 @@
 // enters the Edge bundle. HMAC signing uses the Web Crypto global (crypto.subtle),
 // never node:crypto, matching sessions.ts.
 
-import { isIP } from "node:net";
 import type { Db } from "@/lib/db/types";
 import { config } from "@/lib/config";
+import { ipShaped } from "./rate-limit";
 import {
   recordAuthEvent,
   type AuthAuditEvent,
@@ -82,29 +82,22 @@ const EGRESS_DETAIL_KEYS = [
 ] as const;
 
 /**
- * Validate that `ip` is actually shaped like an IPv4 or IPv6 address (via
- * node:net's `isIP`, which returns 0 for anything else) before it is allowed
- * to egress in a notification's Source IP field. Returns the value unchanged
- * when it is IP-shaped, or `null` otherwise.
+ * Validate that `ip` is actually shaped like an IPv4 or IPv6 address before it
+ * is allowed to egress in a notification's Source IP field. Returns the value
+ * when it is IP-shaped, or `null` otherwise. This is the NOTIFICATION EGRESS
+ * boundary: a non-IP-shaped value becomes `null` (omitted from the message and
+ * the `ip` field), never echoed.
  *
- * `record.ip` comes from clientIp()/forwardedClientIp() (rate-limit.ts),
- * which picks the entry at the trusted-proxy-configured offset from
- * `X-Forwarded-For` for RATE-LIMIT KEYING and AUDIT LOGGING. That resolution
- * is correct for its own purposes and is NOT changed here (hardening
- * advisory A1, v0.4.1 — the trusted-proxy keying logic is out of scope). But
- * under a MISCONFIGURED `OSSHP_TRUSTED_PROXY_HOPS` (declared hop count
- * doesn't match the real proxy chain in front of the app), the entry at that
- * offset can be arbitrary attacker-supplied text rather than an IP — the
- * offset is computed from `entries.length`, which an unauthenticated caller
- * controls by how many comma-separated segments they put in their own XFF
- * header. Without this check, that text would be echoed verbatim into the
- * Source IP line of a lockout/credential-change alert. This validator is the
- * NOTIFICATION EGRESS boundary specifically: a non-IP-shaped value becomes
- * `null` (omitted from the message and the `ip` field), never echoed.
+ * Delegates to the shared `ipShaped` helper (rate-limit.ts) so this egress
+ * check and the attribution-source check inside `clientIp()` cannot drift. As
+ * of v0.5.1, `clientIp()` also IP-shape-validates at the source (both the
+ * trusted-header and the XFF paths), so a live `record.ip` is already shaped;
+ * this boundary is retained as defense in depth (and for historical audit rows
+ * written before the source-level validation landed, which may carry pre-fix
+ * unvalidated text).
  */
 function validatedSourceIp(ip: string | null): string | null {
-  if (ip === null) return null;
-  return isIP(ip) === 0 ? null : ip;
+  return ipShaped(ip);
 }
 
 /** Inform-only guidance suffix — no link, no state-changing endpoint (§6.3). */

@@ -247,12 +247,13 @@ test("A1 ip-shape: a bogus single-entry XFF resolves to a validated-or-omitted I
     }),
     details: { action: "remove", factor: "passkey" },
   });
-  // The raw text DID reach the audit record (rate-limit keying / audit log is
-  // unchanged — out of scope for this hardening) …
-  expect(rec.ip).toBe(bogus);
+  // As of the client-IP-attribution fix (2026-07-12, §5), clientIp() IP-shape-
+  // validates at the SOURCE, so the raw text no longer even reaches the audit
+  // record — A1 is now closed at origin, not just at the notification egress.
+  expect(rec.ip).toBeNull();
 
-  // … but it must NOT reach the notification: not in the `ip` field, not in
-  // the rendered message, anywhere in the serialized payload.
+  // … and a fortiori it must NOT reach the notification: not in the `ip` field,
+  // not in the rendered message, anywhere in the serialized payload.
   const n = buildNotification(rec);
   expect(n.ip).toBeNull();
   expect(n.message).not.toContain("Source IP");

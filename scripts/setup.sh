@@ -403,7 +403,7 @@ fi
 # ---- Cloudflare Tunnel configuration (tunnel mode only) ---------------------
 # Direct mode writes NOTHING here, so its .env is byte-for-byte identical to
 # before this feature: no OSSHP_CADDY_SITE_ADDRESS, no CLOUDFLARE_TUNNEL_TOKEN,
-# no OSSHP_TRUSTED_PROXY_HOPS. In tunnel mode we set:
+# no OSSHP_TRUSTED_CLIENT_IP_HEADER. In tunnel mode we set:
 #   - OSSHP_CADDY_SITE_ADDRESS=http://<domain>  → Caddy serves plain HTTP
 #     behind the tunnel (TLS at Cloudflare's edge). OSSHP_DOMAIN / OSSHP_RP_ID
 #     stay bare, OSSHP_ORIGIN stays https://<domain> — Secure cookies + WebAuthn
@@ -411,19 +411,23 @@ fi
 #   - CLOUDFLARE_TUNNEL_TOKEN=<token>  → the connector's secret. Same handling
 #     class as the other generated secrets: backed up before write, never
 #     overwritten once set, never echoed.
-#   - OSSHP_TRUSTED_PROXY_HOPS=2  → the tunnel chain is Cloudflare edge →
-#     cloudflared → Caddy (proxy) → app, TWO hops that touch
-#     X-Forwarded-For (Cloudflare's edge sets the real client IP as the
-#     first entry; Caddy's reverse_proxy then appends the peer IT observed,
-#     which in this topology is cloudflared's internal container IP, not
-#     the client — cloudflared itself passes the header through unmodified).
-#     `config.trustedProxyHops` defaults to 1 (correct for direct mode's
-#     single Caddy hop). Left at the default 1 in tunnel mode,
-#     `forwardedClientIp()` picks the LAST XFF entry — cloudflared's fixed
-#     internal IP for every request from every visitor on the internet —
-#     collapsing the auth rate-limiter's per-client key and the analytics
-#     unique-visitor hash to one shared bucket/value (issue 070). See
-#     docs/setup-runbook.md → "Trusted proxy hops" for the full chain
+#   - OSSHP_TRUSTED_CLIENT_IP_HEADER=cf-connecting-ip  → in tunnel mode the
+#     X-Forwarded-For chain does NOT survive to the app: the request path is
+#     Cloudflare edge → cloudflared → Caddy (proxy) → app, and Caddy (no
+#     `trusted_proxies` configured) treats cloudflared as an untrusted peer, so
+#     it DISCARDS the inbound XFF entirely and rewrites a 1-entry XFF holding
+#     only cloudflared's internal Docker IP. No hop count can recover the client
+#     IP from that (issue 070's hops=2 model never worked — it assumed Caddy
+#     preserved the inbound chain). The real client IP survives in exactly one
+#     place: `CF-Connecting-IP`, which Cloudflare's edge sets authoritatively
+#     and OVERWRITES on every request (a client-forged value dies at the edge).
+#     Setting this var makes clientIp() read ONLY that header (fail-closed, no
+#     XFF fallback), so the auth rate-limiter's per-client key, the audit log,
+#     session metadata, and analytics attribution are all correct behind the
+#     tunnel. NOTE: we deliberately no longer generate OSSHP_TRUSTED_PROXY_HOPS
+#     for new tunnel installs (it was the wrong model); an existing value is
+#     preserved and harmless — the header var preempts it. See
+#     docs/setup-runbook.md → "Client-IP attribution" for the full chain
 #     reasoning. Fill-empty-fields-only like every other value here.
 
 if [ "${DEPLOY_MODE}" = tunnel ]; then
@@ -437,16 +441,17 @@ if [ "${DEPLOY_MODE}" = tunnel ]; then
     PRESERVED+=("OSSHP_CADDY_SITE_ADDRESS — already set (${current_site})")
   fi
 
-  # Trusted proxy hop count for the auth rate-limiter / analytics client-IP
-  # resolution (issue 070) — fill only if unset/placeholder (preserve on
-  # re-run / an operator override).
-  current_hops="$(osshp_get_env "${ENV_FILE}" OSSHP_TRUSTED_PROXY_HOPS)"
-  if is_placeholder "${current_hops}"; then
+  # Trusted client-IP header for the auth rate-limiter / audit / analytics
+  # client-IP resolution — fill only if unset/placeholder (preserve on re-run /
+  # an operator override). This is the tunnel-mode client-IP fix: XFF does not
+  # survive the tunnel chain, but Cloudflare sets CF-Connecting-IP.
+  current_ip_header="$(osshp_get_env "${ENV_FILE}" OSSHP_TRUSTED_CLIENT_IP_HEADER)"
+  if is_placeholder "${current_ip_header}"; then
     backup_once "${ENV_FILE}"
-    osshp_set_env "${ENV_FILE}" OSSHP_TRUSTED_PROXY_HOPS "2"
-    GENERATED+=("OSSHP_TRUSTED_PROXY_HOPS (2 — tunnel mode: Cloudflare edge + Caddy both touch X-Forwarded-For)")
+    osshp_set_env "${ENV_FILE}" OSSHP_TRUSTED_CLIENT_IP_HEADER "cf-connecting-ip"
+    GENERATED+=("OSSHP_TRUSTED_CLIENT_IP_HEADER (cf-connecting-ip — tunnel mode: Cloudflare sets this header authoritatively; XFF does not survive the tunnel chain)")
   else
-    PRESERVED+=("OSSHP_TRUSTED_PROXY_HOPS — already set (${current_hops})")
+    PRESERVED+=("OSSHP_TRUSTED_CLIENT_IP_HEADER — already set (${current_ip_header})")
   fi
 
   # Connector token (SECRET).

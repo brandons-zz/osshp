@@ -410,9 +410,9 @@ certificate is requested — TLS is Cloudflare's job at the edge).
 `OSSHP_DOMAIN` and `OSSHP_RP_ID` stay **bare** (`example.com`) and
 `OSSHP_ORIGIN` stays `https://example.com`, so passkeys and **Secure**
 session cookies work normally — browsers still reach your site over HTTPS at
-Cloudflare's edge. It also sets `OSSHP_TRUSTED_PROXY_HOPS=2` — see
-"Trusted proxy hops" below for why tunnel mode needs a different value than
-direct mode.
+Cloudflare's edge. It also sets `OSSHP_TRUSTED_CLIENT_IP_HEADER=cf-connecting-ip`
+— see "Client-IP attribution" below for why tunnel mode needs a header instead
+of the X-Forwarded-For hop count direct mode uses.
 
 ### The canonical command for a tunnel instance
 
@@ -453,57 +453,78 @@ Running the **published image** as well as the tunnel? Stack all three files:
 docker compose -f docker-compose.yml -f docker-compose.tunnel.yml -f docker-compose.ghcr.yml up -d
 ```
 
-#### Trusted proxy hops (issue 070 hardening)
+#### Client-IP attribution
 
-The auth rate-limiter and the analytics module both need to know the real
-visitor IP, and both read it off `X-Forwarded-For` via
-`config.trustedProxyHops` (`OSSHP_TRUSTED_PROXY_HOPS` in `.env`) — the count
-of trusted reverse proxies in front of the app that each contribute one
-entry to that header. **Direct** mode has exactly one such hop (Caddy) and
-defaults to `1`. **Tunnel** mode has TWO:
+The auth rate-limiter, the audit log, session metadata, and the analytics
+module all need to know the real visitor IP. There is one attribution
+function (`clientIp()`), and it resolves the IP differently in the two
+deployment modes — selected only by operator config, never sniffed from the
+request.
 
-1. Cloudflare's edge sets the first `X-Forwarded-For` entry to the real
-   client IP (from `Cf-Connecting-Ip`) as your request enters Cloudflare's
-   network. `cloudflared` tunnels this through to `proxy` unmodified.
-2. Caddy's `reverse_proxy app:3000` (the default behavior — this stack sets
-   no `header_up`/`trusted_proxies` override) then appends the peer **it**
-   observed to the header. In tunnel mode that peer is `cloudflared`'s
-   internal Docker-network IP, not the visitor — cloudflared and Caddy talk
-   to each other over the `edge` network, not the public internet.
+**Direct** (and generic-reverse-proxy) mode reads it off `X-Forwarded-For`
+via `config.trustedProxyHops` (`OSSHP_TRUSTED_PROXY_HOPS` in `.env`) — the
+count of trusted reverse proxies in front of the app that each append one
+entry to that header. Direct mode has exactly one such hop (Caddy) and
+defaults to `1`; the app picks the entry Caddy appended (the true TCP peer),
+and any client-supplied `X-Forwarded-*` is discarded by Caddy, so a forged
+header cannot move the key. Unchanged from before.
 
-So a tunnel-mode request arrives at the app with `X-Forwarded-For: <real
-client IP>, <cloudflared's container IP>` — two entries, not one. The app
-reads the trusted entry counting from the **right** (each trusted hop only
-vouches for the peer it directly observed, so counting inward from the
-proxy nearest the app is the only way to skip untrusted, client-supplied
-entries regardless of how many an attacker prepends on the left). With
-`OSSHP_TRUSTED_PROXY_HOPS=1` (direct mode's default) applied to a two-hop
-tunnel chain, the app would pick the **last** entry — cloudflared's fixed
-internal IP — for every visitor from anywhere on the internet, collapsing
-the rate-limiter's per-client key and the analytics unique-visitor hash to
-one shared value. `OSSHP_TRUSTED_PROXY_HOPS=2` picks the second-from-right
-entry instead: the one Cloudflare's edge (the outermost trusted hop) set,
-i.e. the real client — regardless of any extra entries an attacker
-prepends further left, since those are still to the left of Cloudflare's
-own entry and are skipped the same way.
+**Tunnel** mode cannot use `X-Forwarded-For` at all. The request path is
+Cloudflare edge → `cloudflared` → Caddy (proxy) → app, and Caddy — with no
+`trusted_proxies` configured — treats `cloudflared` as an **untrusted** peer.
+So Caddy **discards the entire inbound `X-Forwarded-For`** (the one
+Cloudflare's edge populated) and writes a fresh one containing exactly one
+entry: `cloudflared`'s internal Docker-network IP. The app therefore receives
+a single-entry XFF holding cloudflared's fixed IP — the same value for every
+visitor on the internet, and **no hop count can recover the client IP from
+it** (this is why the earlier `OSSHP_TRUSTED_PROXY_HOPS=2` model never worked
+— it assumed Caddy preserved the inbound chain, which it does not).
 
-`./scripts/setup.sh --mode tunnel` sets `OSSHP_TRUSTED_PROXY_HOPS=2` for
-you automatically — same fill-empty-fields-only handling as every other
-value it writes; it never overrides a value you've already set.
+The real client IP survives to the app in exactly one header:
+**`CF-Connecting-IP`**. Caddy only manipulates the `X-Forwarded-*` family and
+passes every other header through untouched, and Cloudflare's edge sets
+`CF-Connecting-IP` to the actual connecting address and **overwrites** any
+value a client tried to forge — so behind the tunnel it is authoritative and
+un-spoofable (a forged header dies at the edge; the only ingress is
+cloudflared → Caddy on the isolated `edge` network with the proxy's host
+ports dropped).
+
+Tunnel mode therefore sets **`OSSHP_TRUSTED_CLIENT_IP_HEADER=cf-connecting-ip`**.
+When this var is set, `clientIp()` reads the client IP from **only** that
+header, validates it is IP-shaped, and applies **no X-Forwarded-For
+fallback** — a missing or malformed header yields an unattributable request
+(rate-limit key `unknown`, with the IP-independent global per-lane cap still
+binding). Fail-closed on purpose: falling back to XFF would let exactly the
+request that did *not* transit Cloudflare pick its own attribution through the
+weaker path.
+
+`./scripts/setup.sh --mode tunnel` sets `OSSHP_TRUSTED_CLIENT_IP_HEADER` for
+you automatically — same fill-empty-fields-only handling as every other value
+it writes; it never overrides a value you've already set. It no longer writes
+`OSSHP_TRUSTED_PROXY_HOPS` for new tunnel installs (an existing value is left
+in place and is harmless — the header var preempts it).
+
+> **SECURITY — generic reverse proxies:** `OSSHP_TRUSTED_CLIENT_IP_HEADER` is
+> safe **only** when every network route to the app overwrites that header at
+> trusted infrastructure (as Cloudflare's edge does in tunnel mode). If your
+> own proxy sits in front of osshp, set this to a header your proxy *guarantees*
+> to set (e.g. nginx `proxy_set_header X-Real-IP $remote_addr`) **and** ensure
+> the app is not directly reachable. If the app can be hit directly, a client
+> can forge the header and choose its own attributed IP — leave the var unset
+> and use `OSSHP_TRUSTED_PROXY_HOPS` instead.
 
 **Switching a tunnel instance back to direct mode:** drop the
 `-f docker-compose.tunnel.yml` overlay from your commands **and** remove
-`OSSHP_CADDY_SITE_ADDRESS` **and** `OSSHP_TRUSTED_PROXY_HOPS` from `.env`.
-The `OSSHP_CADDY_SITE_ADDRESS` step matters — a stale `http://<domain>`
+`OSSHP_CADDY_SITE_ADDRESS` **and** `OSSHP_TRUSTED_CLIENT_IP_HEADER` from
+`.env`. The `OSSHP_CADDY_SITE_ADDRESS` step matters — a stale `http://<domain>`
 value left in `.env` with a base-only `docker compose up -d` would make
 Caddy serve **plain HTTP on the now-published ports 80/443** instead of
 terminating TLS. With the line removed, Caddy falls back to the bare
 `OSSHP_DOMAIN` and does automatic HTTPS again. The
-`OSSHP_TRUSTED_PROXY_HOPS` step matters too — direct mode only has one
-trusted hop (Caddy), so a stale `2` would make the app pick the wrong XFF
-entry (one hop too far left) and mis-key the rate-limiter/analytics the
-same way a stale `1` does in tunnel mode. Removing it restores the correct
-default of `1`.
+`OSSHP_TRUSTED_CLIENT_IP_HEADER` step matters too — leaving it set while the
+app is served directly by Caddy means the app trusts a `CF-Connecting-IP`
+header that is now client-forgeable (no Cloudflare edge in front to overwrite
+it). Removing it restores the correct direct-mode XFF/hops attribution.
 
 ### Verify
 

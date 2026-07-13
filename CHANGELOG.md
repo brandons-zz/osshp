@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.1] — 2026-07-12
+
+Patch release fixing client-IP attribution for Cloudflare-Tunnel deployments
+(no schema change; upgrade is an image swap). Includes everything in 0.5.0.
+
+### Fixed
+
+- **Client-IP attribution in Cloudflare-Tunnel mode** — behind a Cloudflare
+  Tunnel, Caddy discards the inbound `X-Forwarded-For` and rewrites
+  cloudflared's peer IP, so no hop count could recover the real client IP;
+  every request resolved to no IP at all. The instance can now be told to trust
+  a specific client-IP header (`OSSHP_TRUSTED_CLIENT_IP_HEADER`, set to
+  `cf-connecting-ip` for tunnel deployments), which Cloudflare populates
+  authoritatively at its edge. This restores the real client IP end-to-end —
+  the Security Center no longer shows "IP not recorded", and per-client
+  rate-limiting and analytics attribution work again. The trusted header is
+  read fail-closed (no fallback to spoofable forwarded headers) and only from
+  operator/deploy-time configuration, never sniffed from the request; the
+  resolved value is IP-shape-validated at the source, so a malformed or
+  spoofed value is dropped rather than attributed or echoed.
+
 ## [0.5.0] — 2026-07-12
 
 Minor release layering three admin-console improvements over 0.4.1 (no schema

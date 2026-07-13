@@ -98,6 +98,32 @@ export const config = {
     return Number.isFinite(n) && n >= 0 ? n : 1;
   },
 
+  /**
+   * Name of a request header that a TRUSTED piece of infrastructure guarantees
+   * to overwrite with the real client IP. When set, `clientIp()` reads the
+   * client IP from exactly this header and validates its shape — the
+   * X-Forwarded-For / trustedProxyHops path is fully preempted, with NO
+   * fallback (a missing/invalid header ⇒ unattributable ⇒ the global per-lane
+   * cap is the bound). The canonical use is Cloudflare Tunnel mode, where the
+   * XFF chain does not survive to the app (Caddy discards the inbound XFF and
+   * rewrites it with cloudflared's internal peer IP) but `CF-Connecting-IP`
+   * carries the edge-set, edge-overwritten client IP — setup.sh --mode tunnel
+   * writes `OSSHP_TRUSTED_CLIENT_IP_HEADER=cf-connecting-ip`.
+   *
+   * SECURITY: like rpId/origin/trustedProxyHops, this is OPERATOR / deploy-time
+   * config — NEVER inferred or sniffed from a request (sniffing "does header X
+   * exist?" is exactly the NO-GO #7 bypass). Set this ONLY when every network
+   * route to the app overwrites this header at trusted infrastructure; if the
+   * app is directly reachable, a client can forge the header and choose its own
+   * attributed IP. Trim + lowercase; `null` when unset or empty.
+   */
+  get trustedClientIpHeader(): string | null {
+    const raw = process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER;
+    if (raw === undefined) return null;
+    const v = raw.trim().toLowerCase();
+    return v === "" ? null : v;
+  },
+
   // ── Security notifications (Security Center Slice 2, §6) ────────────────────
   // Two vendor-neutral, opt-in outbound channels. Presence of config = enabled;
   // absence = disabled. DEPLOY-TIME ENV ONLY — never a settings-table / admin-UI

@@ -2,8 +2,9 @@
 .next/
 out/
 
-# Dependencies
-node_modules/
+# Dependencies (no trailing slash so a node_modules SYMLINK is ignored too — a
+# trailing-slash pattern matches directories only and lets a symlink slip in)
+node_modules
 
 # Environment files (never commit .env — only .env.example is tracked)
 .env

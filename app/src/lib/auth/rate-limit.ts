@@ -26,6 +26,7 @@
 //     attribution is defeated or spoofed (e.g. direct exposure with no trusted
 //     proxy), the lane still hits a hard bound. Defense in depth.
 
+import { isIP } from "node:net";
 import { config } from "@/lib/config";
 import type { Db } from "@/lib/db/types";
 
@@ -332,14 +333,48 @@ function forwardedClientIp(request: Request): string | null {
 }
 
 /**
- * Resolve the trusted-proxy-aware client IP for a request, or null when it is
- * unattributable (direct exposure with no trusted proxy, or a chain shorter than
- * declared). This is the single source of "who is the client" — the rate-limit
- * keying AND the audit log (audit.ts) both use it, so throttling and logging agree
- * on the source IP and neither can be fooled by a rotated leftmost XFF token.
+ * Return `raw` only when it parses as an IPv4 or IPv6 address (node:net `isIP`
+ * returns 0 for anything else), else `null`. Trimmed first. This is the shared
+ * IP-shape validator: `clientIp()` applies it at the ATTRIBUTION SOURCE (both
+ * the trusted-header and the XFF path), and notify.ts delegates to it at the
+ * notification EGRESS boundary, so the two checks cannot drift. Safe here (the
+ * `node:net` import is route-only — this module is never imported by the Edge
+ * middleware, same constraint documented on sessionMetadataFromRequest).
+ */
+export function ipShaped(raw: string | null): string | null {
+  if (raw === null) return null;
+  const v = raw.trim();
+  return isIP(v) === 0 ? null : v;
+}
+
+/**
+ * Resolve the client IP for a request, or null when it is unattributable. This
+ * is the single source of "who is the client" — the rate-limit keying, the
+ * audit log (audit.ts), session metadata, and analytics all flow from it, so
+ * they agree on the source IP and none can be fooled by a rotated XFF token.
+ *
+ * Two mutually-exclusive attribution modes, selected by OPERATOR config only
+ * (never request-derived):
+ *   - Trusted-header mode (`config.trustedClientIpHeader` set): read the client
+ *     IP from exactly that header and IP-shape-validate it. FAIL-CLOSED — a
+ *     missing or non-IP-shaped header yields `null` (unattributable ⇒ key
+ *     `unknown`, global caps bind). There is NO fallback to X-Forwarded-For:
+ *     falling back would let precisely the request that did NOT transit the
+ *     trusted infrastructure pick its own attribution through the weaker path.
+ *     Canonical use is Cloudflare Tunnel mode, where the XFF chain does not
+ *     survive to the app but `CF-Connecting-IP` carries the edge-overwritten
+ *     client IP (see config.trustedClientIpHeader).
+ *   - Hops mode (header unset, the default): the existing trusted-proxy-aware
+ *     X-Forwarded-For selection, now also IP-shape-validated so a misconfigured
+ *     hop count converts attacker-supplied text at the selected offset to
+ *     `null` at the source rather than echoing it downstream.
  */
 export function clientIp(request: Request): string | null {
-  return forwardedClientIp(request);
+  const header = config.trustedClientIpHeader;
+  if (header !== null) {
+    return ipShaped(request.headers.get(header));
+  }
+  return ipShaped(forwardedClientIp(request));
 }
 
 /**

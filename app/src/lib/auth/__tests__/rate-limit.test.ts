@@ -5,8 +5,10 @@
 // app uses, so these tests run against PGlite — real PostgreSQL compiled to
 // WASM, in-process, no external service — exactly like the pre-push gate.
 
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { clientKey, createRateLimiter } from "../rate-limit";
+import { clientIp, clientKey, createRateLimiter, ipShaped } from "../rate-limit";
 import { createTestDb, type TestDb } from "@/lib/db/test-support";
 import type { Db } from "@/lib/db/types";
 
@@ -217,12 +219,13 @@ test("with hops=2, an attacker prepending extra spoofed entries still cannot con
     // overwrite), then Caddy appends cloudflared's IP after that — 3 entries.
     // The 2nd-from-right (Cloudflare's own entry) must still be selected,
     // regardless of how many attacker-controlled entries sit further left.
+    const realClientIp = "4.4.4.4"; // the entry Cloudflare's edge appended
     const req = new Request("https://x/login", {
       headers: {
-        "x-forwarded-for": `6.6.6.6, 9.9.9.9, 5.5.5.5, real-client-ip, ${cloudflaredIp}`,
+        "x-forwarded-for": `6.6.6.6, 9.9.9.9, 5.5.5.5, ${realClientIp}, ${cloudflaredIp}`,
       },
     });
-    expect(clientKey("login", req)).toBe("login:real-client-ip");
+    expect(clientKey("login", req)).toBe(`login:${realClientIp}`);
   });
 });
 
@@ -370,4 +373,138 @@ test("F1: the IP-independent global per-lane cap also holds under concurrent req
   const admitted = results.filter((r) => r.allowed).length;
   expect(admitted).toBe(5); // exactly globalMax, never more
   expect(results.filter((r) => !r.allowed).length).toBe(N - 5);
+});
+
+// ── Client-IP attribution: OSSHP_TRUSTED_CLIENT_IP_HEADER (Cloudflare Tunnel) ──
+// In tunnel mode X-Forwarded-For does not survive to the app (Caddy discards the
+// inbound chain and rewrites cloudflared's peer IP), but Cloudflare's edge sets
+// CF-Connecting-IP authoritatively. When OSSHP_TRUSTED_CLIENT_IP_HEADER is set,
+// clientIp() reads ONLY that header, IP-shape-validates it, and applies NO XFF
+// fallback (fail-closed). These tests fail against the pre-fix clientIp (which
+// ignored the header entirely and always read XFF): with the header configured,
+// a request carrying only CF-Connecting-IP resolves to that IP — pre-fix it
+// resolved to null (no XFF present) or to a spoofable XFF value.
+async function withTrustedClientHeader(
+  value: string | undefined,
+  body: () => Promise<void> | void,
+): Promise<void> {
+  const prev = process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER;
+  if (value === undefined) delete process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER;
+  else process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER = value;
+  try {
+    await body();
+  } finally {
+    if (prev === undefined) delete process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER;
+    else process.env.OSSHP_TRUSTED_CLIENT_IP_HEADER = prev;
+  }
+}
+
+test("header mode: clientIp returns the IP-shaped value of the trusted header (IPv4 and IPv6)", async () => {
+  await withTrustedClientHeader("cf-connecting-ip", () => {
+    const v4 = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "203.0.113.7" },
+    });
+    expect(clientIp(v4)).toBe("203.0.113.7");
+    const v6 = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "2001:db8::1" },
+    });
+    expect(clientIp(v6)).toBe("2001:db8::1");
+    // Padding is trimmed before validation.
+    const padded = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "  198.51.100.4  " },
+    });
+    expect(clientIp(padded)).toBe("198.51.100.4");
+  });
+});
+
+test("header mode: a missing, garbage, or multi-value header resolves to null (fail-closed)", async () => {
+  await withTrustedClientHeader("cf-connecting-ip", () => {
+    // Header absent entirely.
+    expect(clientIp(new Request("https://x/"))).toBeNull();
+    // Non-IP garbage text.
+    const garbage = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "not-an-ip" },
+    });
+    expect(clientIp(garbage)).toBeNull();
+    // A comma-joined multi-value is not a single IP — rejected, never split.
+    const multi = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "203.0.113.7, 203.0.113.8" },
+    });
+    expect(clientIp(multi)).toBeNull();
+  });
+});
+
+test("header mode: X-Forwarded-For present but trusted header absent → null (NO fallback to XFF)", async () => {
+  await withTrustedHops("1", async () => {
+    await withTrustedClientHeader("cf-connecting-ip", () => {
+      // A request that did NOT transit the trusted infra carries only a
+      // (spoofable) XFF. Header mode must NOT fall back to it — the request is
+      // unattributable. This is the crux of the fail-closed design.
+      const req = new Request("https://x/", {
+        headers: { "x-forwarded-for": "9.9.9.9, 10.0.0.1" },
+      });
+      expect(clientIp(req)).toBeNull();
+      // clientKey therefore collapses to the "unknown" key (global cap binds).
+      expect(clientKey("login", req)).toBe("login:unknown");
+    });
+  });
+});
+
+test("header mode: a forged trusted header in header mode is still returned only if IP-shaped (validation, not trust of content)", async () => {
+  await withTrustedClientHeader("cf-connecting-ip", () => {
+    // The trust argument is TOPOLOGICAL (only Cloudflare's edge can set this
+    // header behind the tunnel, and it overwrites forgeries). clientIp does not
+    // re-derive that trust; it only shape-validates. A shaped value is returned;
+    // this documents that the safety rests on deployment config, not content.
+    const shaped = new Request("https://x/", {
+      headers: { "cf-connecting-ip": "192.0.2.55" },
+    });
+    expect(clientIp(shaped)).toBe("192.0.2.55");
+  });
+});
+
+test("direct mode unchanged: hops-based XFF selection still works, and non-IP text at the selected offset is shaped to null", async () => {
+  // Header UNSET → the existing hops/XFF path runs. Selection is byte-for-byte
+  // the same; the only addition is IP-shape validation on the selected entry.
+  await withTrustedClientHeader(undefined, async () => {
+    await withTrustedHops("1", () => {
+      // Normal case: the trusted (rightmost) entry is a real IP — unchanged.
+      const ok = new Request("https://x/", {
+        headers: { "x-forwarded-for": "9.9.9.9, 10.0.0.1" },
+      });
+      expect(clientIp(ok)).toBe("10.0.0.1");
+      // Misconfigured hop count / attacker-supplied text at the selected offset
+      // → shaped to null at the source (closes v0.4.0 advisory A1 at origin).
+      const garbage = new Request("https://x/", {
+        headers: { "x-forwarded-for": "9.9.9.9, not-an-ip" },
+      });
+      expect(clientIp(garbage)).toBeNull();
+    });
+  });
+});
+
+test("ipShaped: returns IPv4/IPv6 (trimmed), null for garbage/empty/null", () => {
+  expect(ipShaped("203.0.113.9")).toBe("203.0.113.9");
+  expect(ipShaped("  2001:db8::9  ")).toBe("2001:db8::9");
+  expect(ipShaped("not-an-ip")).toBeNull();
+  expect(ipShaped("")).toBeNull();
+  expect(ipShaped(null)).toBeNull();
+});
+
+// ── Single source of truth (D9): no production file outside rate-limit.ts reads
+// the trusted client-IP header. This is what makes the whole spoofing argument
+// auditable — every consumer flows through clientIp(); none reaches around it to
+// read config.trustedClientIpHeader (or the raw header) directly.
+
+test("single-source: no production src file outside rate-limit.ts reads config.trustedClientIpHeader", () => {
+  const srcDir = join(import.meta.dir, "../../..");
+  const offenders: string[] = [];
+  for (const rel of readdirSync(srcDir, { recursive: true }) as string[]) {
+    if (!rel.endsWith(".ts") && !rel.endsWith(".tsx")) continue;
+    if (rel.includes("__tests__")) continue; // tests may reference it
+    if (rel.endsWith("lib/auth/rate-limit.ts")) continue; // the sole reader
+    const text = readFileSync(join(srcDir, rel), "utf8");
+    if (text.includes("config.trustedClientIpHeader")) offenders.push(rel);
+  }
+  expect(offenders).toEqual([]);
 });

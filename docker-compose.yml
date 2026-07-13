@@ -62,12 +62,21 @@ services:
       # numeric getters below, whose "" parses to NaN and falls back to their
       # own default. `:-osshp` reproduces config's current unset behavior.
       OSSHP_RP_NAME: ${OSSHP_RP_NAME:-osshp}
-      # Trusted reverse-proxy hop count (070). setup.sh writes 2 to .env for
-      # tunnel mode (Cloudflare edge + Caddy); without forwarding it here that
-      # value never reaches config.trustedProxyHops, so client-IP attribution
-      # for rate-limit keying + analytics silently stays at the direct-mode
-      # default. Optional (${VAR:-}): unset ⇒ "" ⇒ config's own default of 1.
+      # Trusted reverse-proxy hop count (070) for the X-Forwarded-For client-IP
+      # selection used in DIRECT / generic-reverse-proxy mode. Optional
+      # (${VAR:-}): unset ⇒ "" ⇒ config's own default of 1. Preempted whenever
+      # OSSHP_TRUSTED_CLIENT_IP_HEADER is set (tunnel mode).
       OSSHP_TRUSTED_PROXY_HOPS: ${OSSHP_TRUSTED_PROXY_HOPS:-}
+      # Trusted client-IP header (client-IP-attribution fix). setup.sh --mode
+      # tunnel writes `cf-connecting-ip` here: the XFF chain does not survive
+      # the tunnel (Caddy discards the inbound XFF and rewrites it with
+      # cloudflared's peer IP), but Cloudflare's edge sets CF-Connecting-IP
+      # authoritatively. Without forwarding it here that value never reaches
+      # config.trustedClientIpHeader, so tunnel-mode client-IP attribution
+      # silently stays null (the allowlist-omission failure class). When set,
+      # clientIp() reads ONLY this header (fail-closed, no XFF fallback).
+      # Optional (${VAR:-}): unset ⇒ "" ⇒ config default null ⇒ hops path.
+      OSSHP_TRUSTED_CLIENT_IP_HEADER: ${OSSHP_TRUSTED_CLIENT_IP_HEADER:-}
       # Session idle-timeout window ("" ⇒ config default 24h when unset).
       SESSION_IDLE_MS: ${SESSION_IDLE_MS:-}
       # NOTE: SESSION_COOKIE_INSECURE is intentionally NOT forwarded here — it
