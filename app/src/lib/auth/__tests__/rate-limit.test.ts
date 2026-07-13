@@ -5,7 +5,8 @@
 // app uses, so these tests run against PGlite — real PostgreSQL compiled to
 // WASM, in-process, no external service — exactly like the pre-push gate.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { clientIp, clientKey, createRateLimiter, ipShaped } from "../rate-limit";
@@ -507,4 +508,88 @@ test("single-source: no production src file outside rate-limit.ts reads config.t
     if (text.includes("config.trustedClientIpHeader")) offenders.push(rel);
   }
   expect(offenders).toEqual([]);
+});
+
+// ── Single source of truth, part 2 (hardening follow-up): the scan
+// above only catches the config ACCESSOR being read outside rate-limit.ts. It
+// does NOT catch a future call site that skips config entirely and hardcodes
+// the raw Cloudflare-specific header STRING directly (e.g.
+// `request.headers.get("cf-connecting-ip")`) — that would silently bake a
+// vendor-specific assumption into the vendor-neutral core with no config
+// indirection, and this file's own comment already flagged the gap ("or the
+// raw header") without actually checking for it. This extends the scan to
+// close that gap: it fails if the literal header string appears in ANY
+// production source file outside the pair that legitimately needs it —
+// rate-limit.ts (the sole runtime reader, via config) and config.ts (where
+// the operator-facing env value is documented/exemplified, e.g. the setup.sh
+// invocation `OSSHP_TRUSTED_CLIENT_IP_HEADER=cf-connecting-ip` in its
+// doc-comment). Case-insensitive, since a hardcoded literal could use any
+// casing (`CF-Connecting-IP`, `Cf-Connecting-IP`, …) and still work — Header
+// lookups are case-insensitive too.
+
+const CF_HEADER_LITERAL = "cf-connecting-ip";
+// Files legitimately allowed to contain the raw literal: the canonical reader
+// and the config module whose doc-comment documents the concrete env value
+// operators set (setup.sh --mode tunnel). Matched by path suffix so it works
+// against both the real src tree and a synthetic fixture tree in tests.
+const RAW_HEADER_ALLOWED_SUFFIXES = ["lib/auth/rate-limit.ts", "lib/config.ts"];
+
+/**
+ * Scan `srcDir` for any .ts/.tsx production file (excluding __tests__ and the
+ * allow-listed canonical files) that hardcodes the raw vendor-specific
+ * client-IP header string. Returns the list of offending relative paths
+ * (empty = clean). Shared by the real-tree assertion below and the
+ * planted-violation fixture test, so both exercise the exact same scan logic.
+ */
+function scanForRawClientIpHeaderLiteral(srcDir: string): string[] {
+  const offenders: string[] = [];
+  for (const rel of readdirSync(srcDir, { recursive: true }) as string[]) {
+    if (!rel.endsWith(".ts") && !rel.endsWith(".tsx")) continue;
+    if (rel.includes("__tests__")) continue; // test fixtures may reference it
+    if (RAW_HEADER_ALLOWED_SUFFIXES.some((s) => rel.endsWith(s))) continue;
+    const text = readFileSync(join(srcDir, rel), "utf8");
+    if (text.toLowerCase().includes(CF_HEADER_LITERAL)) offenders.push(rel);
+  }
+  return offenders;
+}
+
+test("single-source (raw header): no production src file outside rate-limit.ts/config.ts hardcodes the raw client-IP header string", () => {
+  const srcDir = join(import.meta.dir, "../../..");
+  expect(scanForRawClientIpHeaderLiteral(srcDir)).toEqual([]);
+});
+
+test("single-source (raw header) scan: fails on a planted violation, passes on the clean tree", () => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), "osshp-raw-header-scan-"));
+  try {
+    // Clean fixture: mirrors the real allow-listed pair plus an unrelated,
+    // compliant production file. The scan must pass this tree.
+    mkdirSync(join(fixtureRoot, "lib/auth"), { recursive: true });
+    writeFileSync(
+      join(fixtureRoot, "lib/auth/rate-limit.ts"),
+      `export const h = config.trustedClientIpHeader; // "${CF_HEADER_LITERAL}" example ok here\n`,
+    );
+    writeFileSync(
+      join(fixtureRoot, "lib/config.ts"),
+      `// operators set OSSHP_TRUSTED_CLIENT_IP_HEADER=${CF_HEADER_LITERAL}\nexport const config = {};\n`,
+    );
+    mkdirSync(join(fixtureRoot, "lib/other"), { recursive: true });
+    writeFileSync(
+      join(fixtureRoot, "lib/other/unrelated.ts"),
+      `export function noop() { return 1; }\n`,
+    );
+    expect(scanForRawClientIpHeaderLiteral(fixtureRoot)).toEqual([]);
+
+    // Plant a violation: a production file OUTSIDE the allowed pair that
+    // hardcodes the raw header string directly, bypassing config entirely —
+    // exactly the gap the AC calls out. Also exercise case-insensitivity.
+    writeFileSync(
+      join(fixtureRoot, "lib/other/leaky.ts"),
+      `export function bad(req: Request) { return req.headers.get("CF-Connecting-IP"); }\n`,
+    );
+    const offenders = scanForRawClientIpHeaderLiteral(fixtureRoot);
+    expect(offenders).toContain("lib/other/leaky.ts");
+    expect(offenders.length).toBe(1);
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 });

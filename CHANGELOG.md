@@ -5,6 +5,47 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.2] — 2026-07-12
+
+Patch release over 0.5.1 (no schema change; upgrade is an image swap).
+Includes everything in 0.5.0 and 0.5.1.
+
+### Added
+
+- **Admin nav marks the current page** — the admin navigation now highlights
+  the section you're on: the active entry gets `aria-current="page"` and an
+  accent indicator, including when you're on a page nested under a section
+  (e.g. a settings sub-page still marks its parent section current). The
+  visual accent style shipped in 0.5.0 but had no code path setting it; this
+  wires it up.
+
+### Accessibility
+
+- **Dark-theme active-nav accent contrast widened** — the active-nav accent
+  bar in dark mode measured 3.07:1 against its background, just barely above
+  the WCAG 1.4.11 non-text-contrast floor (3:1). It now uses a dedicated,
+  audited token measuring 7.48:1 — a durable margin that won't regress from a
+  future color tweak. Light theme and every other consumer of the shared
+  accent color are unchanged.
+
+### Security
+
+- **Redaction backstop hardened for non-plain values** — the audit/
+  notification secret-redaction backstop previously treated every
+  non-null object as a plain record, which silently collapsed values like
+  dates or map/set structures to an empty object instead of handling them
+  correctly. It now preserves dates as plain ISO strings, checks map keys/
+  values and set elements for secrets individually, and redacts any other
+  opaque object type with an explicit marker rather than ever risking a
+  false "nothing to redact" read. Defense-in-depth; no existing writer is
+  affected.
+
+### Internal
+
+- Release-time source scanning for vendor-neutral client-IP handling now
+  also catches a hardcoded raw header string used outside the sanctioned
+  config path, closing a small gap in the existing check.
+
 ## [0.5.1] — 2026-07-12
 
 Patch release fixing client-IP attribution for Cloudflare-Tunnel deployments

@@ -62,6 +62,13 @@
   --nav-active-bg: #e8eefc;
   --row-zebra: #faf9f7;  --row-hover: #f2f4fb;
   --inset-bg: #f6f6f4;   /* recessed field-group / list-panel surface */
+  /* Dedicated active-nav accent-bar token (issue: dark accent-solid-on-
+     nav-active-bg measured only 3.071:1, too thin above the 3:1 non-text
+     floor to stay durable). Isolated from --accent-solid so its many other
+     consumers (buttons, focus rings, .seg, .tag-option, etc.) are untouched.
+     Light: same hex as --accent-solid — already 5.766:1 on --nav-active-bg,
+     unchanged. */
+  --nav-accent-bar: #1d4ed8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -102,6 +109,11 @@
     --nav-active-bg: #1a2740;
     --row-zebra: #1f2126;  --row-hover: #222a3d;
     --inset-bg: #202228;
+    /* Dark: reuses the already-audited --accent-text hex (not a new color)
+       so the bar stays in the same brand-blue family. 7.477:1 on
+       --nav-active-bg (#1a2740) — durably clear of both the 3:1 floor and
+       the 4.5:1 target, vs. 3.071:1 for --accent-solid (#3b6ae0). */
+    --nav-accent-bar: #9bb6ff;
   }
 }
 
@@ -186,7 +198,11 @@ a { color: var(--accent-text); }
   color: var(--text);
   font-weight: var(--weight-semibold);
 }
-/* Signature: a rounded accent bar marks the active item (non-text ≥3:1). */
+/* Signature: a rounded accent bar marks the active item. Uses the dedicated
+   --nav-accent-bar token (not --accent-solid) so this pairing can be tuned
+   per-theme without touching --accent-solid's many other consumers.
+   Non-text contrast vs. --nav-active-bg: light 5.766:1, dark 7.477:1 — both
+   durably clear of the 3:1 floor (1.4.11) and the 4.5:1 durability target. */
 .shell-nav-links a[aria-current="page"]::before {
   content: "";
   position: absolute;
@@ -196,7 +212,7 @@ a { color: var(--accent-text); }
   width: 3px;
   height: 1.1rem;
   border-radius: var(--radius-full);
-  background: var(--accent-solid);
+  background: var(--nav-accent-bar);
 }
 
 @media (max-width: 48rem) {

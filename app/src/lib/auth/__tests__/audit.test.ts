@@ -80,6 +80,85 @@ test("A2 array-redaction: a secret-bearing object nested inside an array is reda
   expect(blob.includes("abcd-efgh")).toBe(false);
 });
 
+// ── A3 non-plain-object redaction: Date/Map (and Set) get predictable handling
+// (hardening advisory A3). Pre-fix, redactValue treated ANY `typeof === "object"`
+// value as a plain record and ran it through redactDetails/Object.entries —
+// which returns `[]` for a Date or a Map (their real content lives in internal
+// slots, not own enumerable string-keyed properties), so both silently
+// collapsed to a misleading `{}`: a benign Date lost its value with no signal
+// anything was dropped, and a Map's entries — including any secret-bearing
+// key — were never even reached by the SECRET_KEY_RE check. No current writer
+// emits either, so this closes a defense-in-depth gap, not a live leak.
+
+test("A3: a Date detail value is preserved as an ISO string, not silently mangled to {}", () => {
+  const when = new Date("2026-07-12T03:04:05.000Z");
+  const out = redactDetails({ lane: "login", occurredAt: when });
+  // Pre-fix this was `{}` (Object.entries(date) === []) — a silent, misleading
+  // collapse of a benign value. Post-fix it is the lossless ISO projection.
+  expect(out.occurredAt).toBe("2026-07-12T03:04:05.000Z");
+  expect(out.occurredAt).not.toEqual({});
+});
+
+test("A3: a Map detail value redacts secret-looking keys and keeps safe ones (no bypass)", () => {
+  const sessions = new Map<string, unknown>([
+    ["token", "should-not-survive"],
+    ["label", "primary"],
+  ]);
+  const out = redactDetails({ lane: "session.revoke_others", sessions });
+
+  // Pre-fix this was `{}` — the Map's keys were never checked against
+  // SECRET_KEY_RE at all (Object.entries(map) === []), so the secret-bearing
+  // key wasn't merely unredacted, it (and the benign key) vanished silently.
+  expect(out.sessions).not.toEqual({});
+  const redactedSessions = out.sessions as Record<string, unknown>;
+  expect(redactedSessions.token).toBe("[REDACTED]");
+  expect(redactedSessions.label).toBe("primary");
+
+  // Belt-and-suspenders: the secret value never reaches the serialized line.
+  const blob = JSON.stringify(out);
+  expect(blob.includes("should-not-survive")).toBe(false);
+});
+
+test("A3: a Map with non-string keys still redacts via the stringified key", () => {
+  const m = new Map<unknown, unknown>([
+    [Symbol("totpSecret"), "should-not-survive"],
+    [1, "fine"],
+  ]);
+  const out = redactDetails({ lane: "login", m });
+  const redacted = out.m as Record<string, unknown>;
+  // Symbol("totpSecret") stringifies to "Symbol(totpSecret)" — still matches
+  // SECRET_KEY_RE's /totp/i substring test, so it redacts.
+  expect(Object.values(redacted)).toContain("[REDACTED]");
+  expect(redacted["1"]).toBe("fine");
+  const blob = JSON.stringify(out);
+  expect(blob.includes("should-not-survive")).toBe(false);
+});
+
+test("A3: a Set detail value redacts element-wise like an array, no silent collapse", () => {
+  const out = redactDetails({
+    lane: "login",
+    tags: new Set(["safe-a", "safe-b"]),
+    nested: new Set([{ recovery_code: "abcd-efgh" }, { label: "ok" }]),
+  });
+  expect(out.tags).toEqual(["safe-a", "safe-b"]);
+  const nested = out.nested as Array<Record<string, unknown>>;
+  expect(nested[0].recovery_code).toBe("[REDACTED]");
+  expect(nested[1].label).toBe("ok");
+  const blob = JSON.stringify(out);
+  expect(blob.includes("abcd-efgh")).toBe(false);
+});
+
+test("A3: an unrecognized non-plain-object (RegExp) is redacted conservatively, not leaked or silently emptied", () => {
+  const out = redactDetails({ lane: "login", pattern: /secret-value/ });
+  // Pre-fix this collapsed to `{}` too (Object.entries(regexp) === []) — same
+  // silent-mangle failure mode. Post-fix it is an explicit, labeled marker:
+  // never mistaken for "nothing was here," and never a chance to leak
+  // whatever internal structure a future opaque type might carry.
+  expect(out.pattern).toBe("[REDACTED:non-plain-object]");
+  const blob = JSON.stringify(out);
+  expect(blob.includes("secret-value")).toBe(false);
+});
+
 test("buildAuditRecord carries event/outcome and a trusted-proxy-aware source IP", () => {
   const rec = buildAuditRecord("login.failure", "failure", {
     request: reqWithIp("9.9.9.9"),

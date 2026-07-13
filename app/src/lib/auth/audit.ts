@@ -79,6 +79,39 @@ const SECRET_KEY_RE =
   /secret|token|password|passwd|totp|recovery|hash|cookie|credential|challenge|private|\bkey\b|apikey|api_key/i;
 
 const REDACTED = "[REDACTED]";
+const REDACTED_OPAQUE = "[REDACTED:non-plain-object]";
+
+/**
+ * True for a plain record — an object literal or an `Object.create(null)`
+ * store — as opposed to a built-in with its own internal slots (Date, Map,
+ * Set, RegExp, Error, a Buffer, a class instance…). `Object.entries()` on the
+ * latter silently returns `[]` (built-ins keep their real data in internal
+ * slots, not own enumerable string-keyed properties), so walking one through
+ * the plain-object path doesn't leak it — it silently DROPS it, collapsing to
+ * a misleading `{}` that looks like "nothing was here."
+ */
+function isPlainObject(value: object): boolean {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Redact a Map's entries into a plain, JSON-serializable record: each key is
+ * stringified and checked against SECRET_KEY_RE exactly like an object key
+ * (so `new Map([["token", "abc"]])` redacts the same as `{ token: "abc" }`),
+ * and each surviving value recurses through redactValue. This is what closes
+ * the "Map bypasses the key-based redaction entirely" gap — the previous
+ * behavior (falling into the plain-object path) never inspected Map keys at
+ * all, because `Object.entries(map)` is always `[]`.
+ */
+function redactMap(value: Map<unknown, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of value.entries()) {
+    const key = typeof k === "string" ? k : String(k);
+    out[key] = SECRET_KEY_RE.test(key) ? REDACTED : redactValue(v);
+  }
+  return out;
+}
 
 /**
  * Redact one detail VALUE (as opposed to a keyed field): recurses into plain
@@ -94,13 +127,42 @@ const REDACTED = "[REDACTED]";
  * shipped its secret straight through unredacted. Hardened as defense in
  * depth (advisory A2, v0.4.1 — no live regression, the fix closes a gap for
  * writers that don't exist yet).
+ *
+ * Non-plain-object built-ins get explicit, predictable handling (defense in
+ * depth, advisory A3 — no current writer emits these either):
+ *  - Date → `toISOString()`. A Date carries no secret-bearing structure and no
+ *    enumerable keys to check, so a lossless, safe string projection is
+ *    strictly better than the previous silent collapse to `{}`.
+ *  - Map → redactMap(): keys ARE checked against SECRET_KEY_RE (closing the
+ *    "Map bypasses key-based redaction" gap) and values recurse.
+ *  - Set → its elements redact element-wise, same as an array (a Set has no
+ *    keys to check, only member values, which may themselves be secret-
+ *    bearing objects).
+ *  - Anything else non-plain (RegExp, Error, Buffer, a class instance, …) —
+ *    we cannot enumerate its structure the way we can a literal record, and
+ *    guessing wrong risks either leaking a nested secret or (again) silently
+ *    mangling it to `{}`. Redact it conservatively to a fixed, clearly-
+ *    labeled marker instead: never a leak, never mistaken for "nothing was
+ *    here."
  */
 function redactValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((v) => redactValue(v));
   }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value instanceof Map) {
+    return redactMap(value);
+  }
+  if (value instanceof Set) {
+    return Array.from(value.values()).map((v) => redactValue(v));
+  }
   if (value !== null && typeof value === "object") {
-    return redactDetails(value as Record<string, unknown>);
+    if (isPlainObject(value)) {
+      return redactDetails(value as Record<string, unknown>);
+    }
+    return REDACTED_OPAQUE;
   }
   return value;
 }
