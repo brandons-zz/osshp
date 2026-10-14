@@ -5,6 +5,41 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.3] — 2026-10-13
+
+Patch release over 0.5.2 (no schema change; upgrade is an image swap).
+Includes everything in 0.5.0, 0.5.1 and 0.5.2.
+
+### Fixed
+
+- **The app no longer gets stuck after a host or Docker restart** — when the
+  database was still starting up at the moment the app booted (common after
+  a reboot, when Docker starts every container at once and does not wait for
+  the database to be healthy), the app's one-time startup step failed and the
+  instance then returned HTTP 500 on every request until it was restarted by
+  hand, even after the database was healthy. Startup now waits for the
+  database: "not reachable yet" errors are retried with increasing delays
+  for up to two minutes, and if the database is still unreachable after that,
+  the app exits so the container restart policy starts it fresh. Real
+  problems — a wrong password, a failing migration — still fail immediately,
+  exactly as before, and a slow migration is never cut off.
+
+### Added
+
+- **The admin console follows your light/dark setting** — the admin, login
+  and setup screens previously followed only your operating system's
+  appearance, ignoring the site's default scheme and your own choice. They
+  now use the same order as the public site: your saved choice, then the
+  site's default scheme (Settings), then your operating system when the
+  default is "auto". A new **Dark mode** toggle in the admin navigation
+  switches it instantly; the choice is remembered in this browser and shared
+  with the public site's toggle. There is no flash of the wrong colors on
+  load.
+- **The admin console shows which version is running** — every admin page
+  now ends with a small `osshp vX.Y.Z` label, taken from the build itself, so
+  you can confirm what an instance is running without inspecting the Docker
+  image.
+
 ## [0.5.2] — 2026-07-12
 
 Patch release over 0.5.1 (no schema change; upgrade is an image swap).

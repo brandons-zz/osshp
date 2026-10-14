@@ -224,6 +224,12 @@
       <td>Server-only. <code>getDb()</code> (globalThis-cached pool) + <code>initializeDatabase()</code> (migrate + seed, idempotent).</td>
     </tr>
     <tr>
+      <td><strong>Boot-time DB retry</strong></td>
+      <td><code>app/src/lib/db/startup-retry.ts</code>; called from <code>app/src/instrumentation.ts</code></td>
+      <td>None (pure; sleep/clock injectable)</td>
+      <td><code>retryTransient()</code> wraps <code>initializeDatabase()</code> at boot: retries only "database not reachable yet" errors (SQLSTATE 57P01/57P02/57P03/53300, class 08, socket/DNS/postgres.js connection codes) with capped exponential backoff (500ms → 5s, 120s deadline). Non-transient errors (bad migration, wrong credentials) rethrow immediately, unchanged. On deadline exhaustion instrumentation exits the process so the container restart policy recovers it — Next.js caches a rejected <code>register()</code> for the process lifetime, so staying up would 500 every request.</td>
+    </tr>
+    <tr>
       <td><strong>Migrations + runner</strong></td>
       <td><code>app/src/lib/db/migrations.ts</code>, <code>migrate.ts</code></td>
       <td>Db seam</td>
@@ -284,7 +290,7 @@
       <td><strong>Scheme + no-flash hook</strong></td>
       <td><code>app/src/lib/theme/scheme.ts</code></td>
       <td>—</td>
-      <td>Two-state light/dark resolution (visitor override → operator default → prefers-color-scheme); app-provided pre-paint inline script (§6).</td>
+      <td>Two-state light/dark resolution (visitor override → operator default → prefers-color-scheme); app-provided pre-paint inline script (§6). <strong>Issue 081: also the APP-SHELL half — <code>resolveAppShellScheme()</code> (server: cookie → explicit operator default, else null = defer to client) and <code>appShellSchemeScript()</code> (pre-paint: cookie → localStorage → SSR'd default → prefers-color-scheme, and follows live OS changes while in auto).</strong></td>
     </tr>
     <tr>
       <td><strong>Theme + slot registry</strong></td>
@@ -567,8 +573,8 @@
     <tr>
       <td><strong>Root layout (dynamic for nonce)</strong></td>
       <td><code>app/src/app/layout.tsx</code></td>
-      <td>next/headers</td>
-      <td>M2.4: reads the per-request nonce header to opt every app-shell page into dynamic rendering — statically prerendered pages carry no per-request nonce and the strict-dynamic CSP would block their scripts (verified: <code>/login</code> went static→dynamic; all framework scripts now nonced at runtime).</td>
+      <td>next/headers, <code>@/lib/db/client</code>, <code>@/lib/content/settings</code>, <code>@/lib/theme/scheme</code>, <code>@/lib/theme/operator-scheme</code></td>
+      <td><strong>Issue 081: resolves the app-shell color scheme (first osshp-scheme cookie, then <code>branding.defaultScheme</code> read via <code>readOperatorScheme()</code> — capped at 250ms; on timeout/error it uses the last value read, else auto, so a hung DB never hangs login and a request burst never flips an explicit default) and SSRs <code>data-scheme</code> on &lt;html&gt; for setup/login/admin; emits the nonced <code>appShellSchemeScript()</code> pre-paint hook. No inline style attribute on &lt;html&gt; (strict CSP).</strong> M2.4: reads the per-request nonce header to opt every app-shell page into dynamic rendering — statically prerendered pages carry no per-request nonce and the strict-dynamic CSP would block their scripts (verified: <code>/login</code> went static→dynamic; all framework scripts now nonced at runtime).</td>
     </tr>
     <tr>
       <td><strong>Brand-token validation</strong></td>
@@ -675,13 +681,13 @@
       <td><strong>Admin shell + Blog authoring</strong></td>
       <td><code>app/src/app/admin/</code> (layout, page, blog/{page,new,[id]/edit}, PostEditor, LogoutButton), <code>app/src/app/api/admin/blog/posts/{route.ts,[id]/route.ts}</code></td>
       <td>owned components, content store, platform session helpers</td>
-      <td>Admin layout validates the session (revocation) + redirects to /login; nav projected from enabled modules' adminNav. Minimal Markdown-textarea editor (full TipTap = M2.3). Create/PATCH publish APIs re-validate the session (default-deny + authoritative check).</td>
+      <td>Admin layout validates the session (revocation) + redirects to /login; nav projected from enabled modules' adminNav. <strong>Issue 081: nav footer renders <code>SchemeToggle</code> (client; flips data-scheme, persists via the shared osshp-scheme cookie + localStorage key). Issue 082: every admin page ends with a footer showing <code>OSSHP_VERSION</code> (<code>app/src/lib/version.ts</code> — package.json version inlined at build time).</strong> Minimal Markdown-textarea editor (full TipTap = M2.3). Create/PATCH publish APIs re-validate the session (default-deny + authoritative check).</td>
     </tr>
     <tr>
       <td><strong>App-shell styles</strong></td>
       <td><code>app/src/styles/shell.css</code></td>
       <td>Layer-1 structural tokens</td>
-      <td>The app shell is app-owned (not theme-rendered), so it carries its own neutral Layer-2 palette + admin/wizard/login layout. Contrast re-gated on real components at M1.10.</td>
+      <td>The app shell is app-owned (not theme-rendered), so it carries its own neutral Layer-2 palette + admin/wizard/login layout. Contrast re-gated on real components at M1.10. <strong>Issue 081: dark tokens keyed on <code>:root[data-scheme="dark"]</code> (was <code>@media (prefers-color-scheme: dark)</code>); "auto" is resolved by the pre-paint hook. Adds <code>.shell-scheme-toggle</code>, <code>.shell-content</code>/<code>.shell-footer</code>/<code>.shell-version</code> (issue 082).</strong></td>
     </tr>
     <tr>
       <td><strong>Default-deny allowlist (extended)</strong></td>

@@ -53,3 +53,79 @@ export function noFlashScript(): string {
     "}catch(e){}})();",
   ].join("");
 }
+
+/**
+ * Pre-paint hook for the APP SHELL (admin console, login, setup — issue 081).
+ * The app shell is not theme-rendered, so it cannot rely on a theme resolving
+ * "auto" for it. The root layout SSRs `data-scheme` on <html> when the scheme
+ * is known server-side (persisted cookie, else an explicit operator default);
+ * this script then, before first paint:
+ *   1. applies a persisted override (cookie → localStorage), exactly as
+ *      noFlashScript() does — so a localStorage-only choice still wins;
+ *   2. else keeps the server-resolved operator default if one was emitted;
+ *   3. else ("auto") resolves via prefers-color-scheme, and keeps following
+ *      the OS while the page is open.
+ * shell.css keys its dark tokens solely on `[data-scheme="dark"]`, so this is
+ * the one place "auto" becomes a concrete scheme in the app shell.
+ */
+export function appShellSchemeScript(): string {
+  return [
+    "(function(){try{",
+    "var k=" + JSON.stringify(SCHEME_STORAGE_KEY) + ";",
+    "var e=document.documentElement;",
+    "function set(v){e.setAttribute('data-scheme',v);e.style.colorScheme=v;}",
+    "var m=document.cookie.match(new RegExp('(?:^|; )'+k+'=([^;]*)'));",
+    "var v=null;try{v=m?decodeURIComponent(m[1]):null}catch(x){}",
+    "if(v!=='light'&&v!=='dark'){try{v=localStorage.getItem(k)}catch(x){}}",
+    "if(v==='light'||v==='dark'){set(v);return;}",
+    "var s=e.getAttribute('data-scheme');",
+    "if(s==='light'||s==='dark'){set(s);return;}",
+    "var q=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)');",
+    "set(q&&q.matches?'dark':'light');",
+    "e.setAttribute('data-scheme-auto','');",
+    "if(q&&q.addEventListener)q.addEventListener('change',function(ev){",
+    "if(e.hasAttribute('data-scheme-auto'))set(ev.matches?'dark':'light');",
+    "});",
+    "}catch(x){}})();",
+  ].join("");
+}
+
+/**
+ * Server-side half of the app-shell resolution (issue 081): the scheme the root
+ * layout can SSR on <html>, or null when it depends on the client ("auto" with
+ * no persisted override — appShellSchemeScript() resolves it pre-paint).
+ * Same §6 order as resolveScheme(): persisted override, then operator default.
+ */
+export function resolveAppShellScheme(
+  persisted: string | null | undefined,
+  operatorDefault: unknown,
+): Scheme | null {
+  if (persisted === "light" || persisted === "dark") return persisted;
+  if (operatorDefault === "light" || operatorDefault === "dark") {
+    return operatorDefault;
+  }
+  return null;
+}
+
+/**
+ * The FIRST `name` cookie in a Cookie header, decoded, or null. Matches what
+ * the pre-paint scripts' regex picks when duplicate cookies exist (e.g. the
+ * same name set on two paths), so server and client never disagree. A
+ * malformed percent-encoding yields null rather than throwing (cf. issue 076).
+ */
+export function firstCookieValue(
+  header: string | null | undefined,
+  name: string,
+): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq < 0 || part.slice(0, eq).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}

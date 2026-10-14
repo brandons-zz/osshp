@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { getDb } from "@/lib/db/client";
+import { getSetting } from "@/lib/content/settings";
+import { NONCE_HEADER } from "@/lib/security/headers";
+import { readOperatorScheme } from "@/lib/theme/operator-scheme";
+import {
+  appShellSchemeScript,
+  firstCookieValue,
+  resolveAppShellScheme,
+  SCHEME_STORAGE_KEY,
+} from "@/lib/theme/scheme";
 // App-shell styles (the setup wizard, login, and admin shell — NOT the public
 // theme-rendered site, which owns its own document + stylesheets via the theme
 // engine). Layer-1 structural tokens are served as a static asset at
@@ -46,10 +56,40 @@ export default async function RootLayout({
   // strict-dynamic CSP would block them — dynamic rendering lets Next inject the
   // per-request nonce into those scripts. The public site is rendered by the
   // theme route handlers (already dynamic), not this layout.
-  await headers();
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get(NONCE_HEADER) ?? undefined;
+
+  // Color scheme (issue 081): the app shell honors the same resolution order
+  // as the public site — visitor's persisted choice, then the operator's
+  // branding.defaultScheme, then (auto) the OS preference. Whatever is known
+  // server-side is SSR'd on <html>; appShellSchemeScript() settles the rest
+  // before first paint. A settings read failure must never take down login or
+  // the setup wizard, so the read is time-bounded and falls back to the last
+  // value read (or "auto") — see lib/theme/operator-scheme.ts.
+  const operatorDefault = await readOperatorScheme(() =>
+    getSetting(getDb(), "branding.defaultScheme"),
+  );
+  const persisted = firstCookieValue(
+    requestHeaders.get("cookie"),
+    SCHEME_STORAGE_KEY,
+  );
+  const scheme = resolveAppShellScheme(persisted, operatorDefault);
+
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-scheme={scheme ?? undefined}
+      // No inline style attribute here: the strict CSP (style-src nonce, no
+      // 'unsafe-inline') blocks style attributes. shell.css derives
+      // color-scheme from data-scheme instead. suppressHydrationWarning covers
+      // the attributes the pre-paint script may set before hydration.
+      suppressHydrationWarning
+    >
       <head>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: appShellSchemeScript() }}
+        />
         <link rel="stylesheet" href="/structural.css" />
         {/* Shiki syntax-highlight CSS — served from 'self'. Loaded here so the
             admin markdown-preview pane (dangerouslySetInnerHTML) shows correct

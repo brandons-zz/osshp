@@ -18,7 +18,37 @@ export async function register(): Promise<void> {
     assertSessionSecretStrength(process.env.SESSION_SECRET);
     assertEncryptionKeyStrength(process.env.OSSHP_ENCRYPTION_KEY);
 
-    const { initializeDatabase } = await import("./lib/db/client");
-    await initializeDatabase();
+    // Retry while the database is merely unreachable (e.g. Postgres still
+    // starting after a host/daemon restart, when the restart policy brings app
+    // and db up together and depends_on is not honored). Next.js caches a
+    // rejected register() for the life of the process — one transient failure
+    // here would otherwise 500 every request until a manual restart. Real
+    // failures (a bad migration, wrong credentials) are not retried.
+    const { initializeDatabase, getDb } = await import("./lib/db/client");
+    const { retryTransient, StartupRetryExhaustedError } = await import(
+      "./lib/db/startup-retry"
+    );
+    try {
+      await retryTransient(() => initializeDatabase(), {
+        // Only this reachability check is time-bounded; migrations, once the
+        // database answers, may take as long as they need.
+        probe: () => getDb().query("select 1"),
+        onRetry: ({ attempt, delayMs, error }) => {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[osshp] database not ready (attempt ${attempt}: ${reason}); retrying in ${delayMs}ms`,
+          );
+        },
+      });
+    } catch (err) {
+      if (err instanceof StartupRetryExhaustedError) {
+        // Still unreachable after the deadline. Exit rather than stay up
+        // serving 500s: the container restart policy (restart: unless-stopped)
+        // then starts a fresh process, which retries again.
+        console.error(`[osshp] ${err.message} — exiting so the container restarts`);
+        process.exit(1);
+      }
+      throw err;
+    }
   }
 }

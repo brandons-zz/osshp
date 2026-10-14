@@ -71,53 +71,57 @@
   --nav-accent-bar: #1d4ed8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #131417;
-    --surface: #1b1c20;
-    --surface-2: #23252b;
-    --text: #ecedef;        /* ~14:1 on --bg */
-    --text-muted: #a3a7af;  /* ~7:1 on --bg */
-    --border: #34373d;
-    --border-ui: #6c6c6c;      /* interactive/functional boundary — 3.24:1 on --surface (1.4.11) */
-    --border-ui-2: #808080;    /* boundary over --surface-2 dark — ≥3:1 (1.4.11) */
-    --accent-solid: #3b6ae0;
-    --on-accent: #ffffff;
-    --accent-text: #9bb6ff;  /* ≥4.5:1 on dark --bg */
-    --danger-text: #ff9b8f;
+/* Dark scheme (issue 081): keyed on `data-scheme` on <html>, NOT on
+   `@media (prefers-color-scheme)`, so the operator default and the visitor's
+   choice apply in the app shell independent of the OS. "auto" still follows
+   the OS: the pre-paint hook (appShellSchemeScript, lib/theme/scheme.ts)
+   resolves it to a concrete data-scheme before first paint. */
+:root[data-scheme="dark"] {
+  color-scheme: dark;
+  --bg: #131417;
+  --surface: #1b1c20;
+  --surface-2: #23252b;
+  --text: #ecedef;        /* ~14:1 on --bg */
+  --text-muted: #a3a7af;  /* ~7:1 on --bg */
+  --border: #34373d;
+  --border-ui: #6c6c6c;      /* interactive/functional boundary — 3.24:1 on --surface (1.4.11) */
+  --border-ui-2: #808080;    /* boundary over --surface-2 dark — ≥3:1 (1.4.11) */
+  --accent-solid: #3b6ae0;
+  --on-accent: #ffffff;
+  --accent-text: #9bb6ff;  /* ≥4.5:1 on dark --bg */
+  --danger-text: #ff9b8f;
 
-    /* Warning register — dark: text ≥8.2:1, border ≥7.7:1. */
-    --warning-text: #f0b429;
-    --warning-border: #e0a52f;
-    --warning-bg: #2c2410;
-    --success-icon: #4ade80;  /* 9.8:1 on dark --surface */
+  /* Warning register — dark: text ≥8.2:1, border ≥7.7:1. */
+  --warning-text: #f0b429;
+  --warning-border: #e0a52f;
+  --warning-bg: #2c2410;
+  --success-icon: #4ade80;  /* 9.8:1 on dark --surface */
 
-    /* Admin design refresh — dark. Elevation reads via a top-highlight
-       hairline + deep soft shadow; status/tonal surfaces retuned for dark. */
-    --elev-1: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
-    --elev-2: 0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
-    --elev-3: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
-    --ring-inset: inset 0 0 0 1px rgba(255,255,255,.04);
+  /* Admin design refresh — dark. Elevation reads via a top-highlight
+     hairline + deep soft shadow; status/tonal surfaces retuned for dark. */
+  --elev-1: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
+  --elev-2: 0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+  --elev-3: 0 16px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+  --ring-inset: inset 0 0 0 1px rgba(255,255,255,.04);
 
-    --st-pub-bg: #16271b;   --st-pub-dot: #4ade80;
-    --st-draft-bg: #2a2c33;  --st-draft-dot: #a3a7af;
-    --st-sched-bg: #2c2410;  --st-sched-dot: #e0a52f;
-    --st-info-bg: #1a2740;   --st-info-dot: #9bb6ff;
+  --st-pub-bg: #16271b;   --st-pub-dot: #4ade80;
+  --st-draft-bg: #2a2c33;  --st-draft-dot: #a3a7af;
+  --st-sched-bg: #2c2410;  --st-sched-dot: #e0a52f;
+  --st-info-bg: #1a2740;   --st-info-dot: #9bb6ff;
 
-    --btn-2-bg: #23252b;   --btn-2-hover: #2c2f36;
-    --ghost-hover: #23252b;
-    --nav-active-bg: #1a2740;
-    --row-zebra: #1f2126;  --row-hover: #222a3d;
-    --inset-bg: #202228;
-    /* Dark: reuses the already-audited --accent-text hex (not a new color)
-       so the bar stays in the same brand-blue family. 7.477:1 on
-       --nav-active-bg (#1a2740) — durably clear of both the 3:1 floor and
-       the 4.5:1 target, vs. 3.071:1 for --accent-solid (#3b6ae0). */
-    --nav-accent-bar: #9bb6ff;
-  }
+  --btn-2-bg: #23252b;   --btn-2-hover: #2c2f36;
+  --ghost-hover: #23252b;
+  --nav-active-bg: #1a2740;
+  --row-zebra: #1f2126;  --row-hover: #222a3d;
+  --inset-bg: #202228;
+  /* Dark: reuses the already-audited --accent-text hex (not a new color)
+     so the bar stays in the same brand-blue family. 7.477:1 on
+     --nav-active-bg (#1a2740) — durably clear of both the 3:1 floor and
+     the 4.5:1 target, vs. 3.071:1 for --accent-solid (#3b6ae0). */
+  --nav-accent-bar: #9bb6ff;
 }
 
-html { color-scheme: light dark; }
+html { color-scheme: light; }
 
 body {
   margin: 0;
@@ -360,7 +364,42 @@ a { color: var(--accent-text); }
 .error { color: var(--danger-text); }
 .stack > * + * { margin-top: var(--space-s); }
 .plain-list { list-style: none; padding: 0; }
-.shell-nav-footer { margin-top: auto; padding-top: var(--space-m); }
+.shell-nav-footer {
+  margin-top: auto;
+  padding-top: var(--space-m);
+  /* Scheme toggle + Sign out (issue 081): wrap rather than overflow on a
+     narrow nav column / 320px reflow (1.4.10). */
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+/* Admin scheme toggle (issue 081). The On/Off text mirrors aria-pressed so
+   the state is visible without relying on color (1.4.1). */
+.shell-scheme-toggle { display: inline-flex; align-items: center; gap: var(--space-2xs); }
+.shell-scheme-toggle-state {
+  font-size: var(--text-xs);
+  color: var(--text-muted);   /* ≥5.5:1 on every secondary-button surface incl. hover, both schemes (1.4.3) */
+  min-width: 2ch;             /* no width jump while the state mounts */
+}
+
+/* Content column: page content, then the build-version footer pinned to the
+   bottom of the viewport on short pages (issue 082). */
+.shell-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;   /* lets the 1fr track shrink at 320px (1.4.10), as .shell-main */
+}
+.shell-footer {
+  margin-top: auto;
+  padding: var(--space-s) var(--space-l);
+  text-align: end;
+}
+.shell-version {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);   /* quiet chrome; 6.9:1 light / 7.6:1 dark on --bg (1.4.3) */
+}
 
 /* --- Accent swatch (setup wizard issue 005; settings issue 042) ----------- */
 .accent-row { display: flex; gap: var(--space-2xs); align-items: center; }
