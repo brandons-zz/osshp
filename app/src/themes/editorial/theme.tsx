@@ -870,7 +870,7 @@ function SchemeToggle({ scheme }: { scheme: Scheme }) {
   );
 }
 
-// ── Site header (masthead — sticky nav, issue 003) ───────────────────────────
+// ── Site header (masthead with mobile disclosure) ───────────────────────────
 
 function SiteHeader({ ctx }: { ctx: ThemeRenderContext }) {
   const { site } = ctx;
@@ -889,7 +889,14 @@ function SiteHeader({ ctx }: { ctx: ThemeRenderContext }) {
             )}
             <span>{site.title || "osshp"}</span>
           </a>
-          <nav className="site-nav" aria-label="Primary">
+          <button type="button" className="nav-toggle" data-nav-toggle hidden
+            aria-label="Menu" aria-controls="primary-navigation" aria-expanded="false">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <span>Menu</span>
+          </button>
+          <nav id="primary-navigation" className="site-nav" aria-label="Primary">
             {site.nav.map((item) => (
               <a key={item.href} href={item.href}>
                 {item.label}
@@ -1147,6 +1154,7 @@ export const editorialTheme: ThemeManifest = {
               </div>
             </div>
           </footer>
+          <script src="/themes/editorial/navigation.js" nonce={shell.nonce} />
           {/* Visitor toggle behavior — vanilla, no client React on the public
               site. nonce-carried so it runs under the nonce-based CSP (A1). */}
           <script

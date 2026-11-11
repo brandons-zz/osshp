@@ -506,6 +506,15 @@ describe("sticky header + visitor toggle; no demo-harness chrome", () => {
     expect(html).toContain("/blog");
   });
 
+  test("mobile visitors receive a named disclosure linked to the primary navigation", () => {
+    const html = renderFull(mockCtx(HOME, "light"));
+    expect(html).toContain('aria-controls="primary-navigation"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('id="primary-navigation"');
+    expect(html).toContain('src="/themes/editorial/navigation.js"');
+    expect(html).toContain('href="/pages/about"');
+  });
+
   test("visitor light/dark toggle present with correct accessible state", () => {
     const light = renderFull(mockCtx(HOME, "light"));
     expect(light).toContain("data-scheme-toggle");

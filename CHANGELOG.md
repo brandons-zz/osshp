@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.4] — 2026-11-10
+
+Patch release over 0.5.3 (no schema change; upgrade is an image swap).
+
+### Fixed
+
+- **Mobile navigation stays compact in portrait and landscape.** The public
+  site's navigation opens from a labelled menu button instead of wrapping
+  across the header. The header slides away when scrolling down and returns
+  when scrolling up, leaving more room for content. Open menus and keyboard
+  focus keep the header available; reduced-motion preferences remove the
+  transition. Desktop navigation retains its existing layout, and navigation
+  links remain available when JavaScript is disabled.
+
 ## [0.5.3] — 2026-10-13
 
 Patch release over 0.5.2 (no schema change; upgrade is an image swap).
