@@ -193,11 +193,17 @@ img{max-width:100%;display:block;}
 
 /* Compact disclosure in portrait and phone landscape. Without JS, links stay visible. */
 .nav-toggle{display:none;}
+.mobile-description{display:none;}
 @media (max-width:1024px){
+  /* The full description scrolls with the page, outside compact sticky chrome. */
+  .mobile-description{
+    display:block;max-width:var(--edge);margin:0 auto;
+    padding:.75rem var(--gutter) 0;overflow-wrap:anywhere;
+  }
   .site-head-bar[data-nav-ready]{transition:transform 220ms var(--ease);}
   .site-head-bar[data-scroll-hidden]{transform:translateY(-100%);}
   .site-head-bar[data-nav-ready] .masthead-inner{padding-top:0;}
-  .site-head-bar[data-nav-ready] .runline{display:none;}
+  .site-head-bar .runline{display:none;}
   .site-head-bar[data-nav-ready] .site-head{flex-wrap:nowrap;gap:.75rem;padding:.5rem 0;}
   .site-head-bar[data-nav-ready] .wordmark{min-width:0;min-height:44px;}
   .site-head-bar[data-nav-ready] .wordmark span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

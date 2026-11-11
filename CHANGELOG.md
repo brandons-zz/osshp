@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/); versioning follows
 [Semantic Versioning](https://semver.org/) once the API/contract surface
 stabilizes (pre-1.0, breaking changes may land in minor releases).
 
+## [0.5.5] — 2026-11-10
+
+Patch release over 0.5.4 (no schema change; upgrade is an image swap).
+
+### Fixed
+
+- **The full site description is visible on mobile again.** It appears below
+  the compact navigation header in normal page flow and scrolls away with the
+  content. Long descriptions wrap without truncation, and empty descriptions
+  add no extra space. Desktop presentation and the mobile menu/scroll behavior
+  are preserved. The corrected stylesheet uses a content revision in its URL
+  so a normal reload refreshes previously cached mobile styles.
+
 ## [0.5.4] — 2026-11-10
 
 Patch release over 0.5.3 (no schema change; upgrade is an image swap).

@@ -1044,7 +1044,7 @@ export const editorialTheme: ThemeManifest = {
   id: "editorial",
   name: "Editorial — Colophon",
   version: "2.0.0",
-  tokenStylesheetHref: "/themes/editorial/theme.css",
+  tokenStylesheetHref: "/themes/editorial/theme.css?v=19582bbb97be",
   schemes: ["light", "dark"],
 
   document(ctx: ThemeRenderContext, shell: DocumentShell) {
@@ -1114,6 +1114,9 @@ export const editorialTheme: ThemeManifest = {
         </head>
         <body>
           <SiteHeader ctx={ctx} />
+          {site.description ? (
+            <p className="mobile-description runline">{site.description}</p>
+          ) : null}
           <main>{shell.body}</main>
           <footer className="colophon">
             <div className="inner">

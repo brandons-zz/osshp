@@ -515,6 +515,26 @@ describe("sticky header + visitor toggle; no demo-harness chrome", () => {
     expect(html).toContain('href="/pages/about"');
   });
 
+  test("full descriptions remain outside sticky chrome on mobile; empty descriptions add no block", () => {
+    for (const description of ["Notes on the homelab.", "A full description with more detail. ".repeat(20), ""]) {
+      const ctx = mockCtx(HOME, "light");
+      ctx.site.description = description;
+      const html = renderFull(ctx);
+      const intro = html.slice(html.indexOf("</header>") + 9, html.indexOf("<main>"));
+      if (description) {
+        expect(intro).toContain(description);
+      } else {
+        expect(intro).not.toContain("mobile-description");
+      }
+    }
+  });
+
+  test("stylesheet changes request fresh bytes instead of a cached prior layout", async () => {
+    const css = await Bun.file(new URL("../../../../public/themes/editorial/theme.css", import.meta.url)).arrayBuffer();
+    const revision = new Bun.CryptoHasher("sha256").update(css).digest("hex").slice(0, 12);
+    expect(editorialTheme.tokenStylesheetHref).toBe(`/themes/editorial/theme.css?v=${revision}`);
+  });
+
   test("visitor light/dark toggle present with correct accessible state", () => {
     const light = renderFull(mockCtx(HOME, "light"));
     expect(light).toContain("data-scheme-toggle");
